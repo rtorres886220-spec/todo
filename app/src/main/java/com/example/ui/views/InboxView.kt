@@ -1,7 +1,6 @@
 package com.example.ui.views
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,17 +14,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
 import com.example.ui.components.AnchorCard
-import com.example.ui.theme.AnchorAmber
-import com.example.ui.theme.AnchorCyan
-import com.example.ui.theme.AnchorTextPrimary
-import com.example.ui.theme.AnchorTextSecondary
-import com.example.ui.theme.AnchorTextTertiary
+import com.example.ui.components.QuietEmptyState
+import com.example.ui.components.QuietHairline
+import com.example.ui.theme.JetBrainsMono
+import com.example.ui.theme.QuietTextSecondary
+import com.example.ui.theme.QuietTextTertiary
+import com.example.ui.theme.QuietUrgency
 
 @Composable
 fun InboxView(
@@ -40,21 +39,34 @@ fun InboxView(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // Overdue Items pinned to the top
+        // Pinned Overdue Anchors
         if (overdueItems.isNotEmpty()) {
             item {
-                Text(
-                    text = "🚨 OVERDUE ANCHORS (PINNED)",
-                    color = AnchorAmber,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "OVERDUE",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 11.sp,
+                        color = QuietUrgency,
+                        letterSpacing = 0.14.em
+                    )
+                    Spacer(modifier = Modifier.padding(start = 8.dp))
+                    Text(
+                        text = "${overdueItems.size}",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 11.sp,
+                        color = QuietUrgency,
+                        letterSpacing = 0.14.em
+                    )
+                }
             }
             items(overdueItems, key = { "inbox_overdue_${it.id}" }) { item ->
                 AnchorCard(
@@ -70,54 +82,36 @@ fun InboxView(
             }
         }
 
-        // Inbox Header
+        // Inbox Section Header
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 4.dp),
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "UNSORTED INBOX (${inboxItems.size})",
-                    color = AnchorTextSecondary,
+                    text = "UNSORTED INBOX",
+                    fontFamily = JetBrainsMono,
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.Black
+                    color = QuietTextSecondary,
+                    letterSpacing = 0.14.em
                 )
                 Text(
-                    text = "Swipe right to send to Today",
-                    color = AnchorTextTertiary,
-                    fontSize = 11.sp
+                    text = "${inboxItems.size} ITEMS",
+                    fontFamily = JetBrainsMono,
+                    fontSize = 11.sp,
+                    color = QuietTextTertiary,
+                    letterSpacing = 0.14.em
                 )
             }
+            QuietHairline(modifier = Modifier.padding(horizontal = 24.dp))
         }
 
         if (inboxItems.isEmpty() && overdueItems.isEmpty()) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(280.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "📥", fontSize = 42.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Inbox Zero",
-                            color = AnchorTextPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Every thought is anchored or planned. Type below anytime.",
-                            color = AnchorTextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
+                QuietEmptyState(message = "Nothing in your inbox")
             }
         } else {
             items(inboxItems, key = { it.id }) { item ->
@@ -134,7 +128,7 @@ fun InboxView(
         }
 
         item {
-            Spacer(modifier = Modifier.height(90.dp))
+            Spacer(modifier = Modifier.height(170.dp))
         }
     }
 }

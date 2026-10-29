@@ -1,7 +1,6 @@
 package com.example.ui.views
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,17 +14,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
 import com.example.ui.components.AnchorCard
-import com.example.ui.theme.AnchorCyan
-import com.example.ui.theme.AnchorTextPrimary
-import com.example.ui.theme.AnchorTextSecondary
+import com.example.ui.components.QuietEmptyState
+import com.example.ui.components.QuietHairline
+import com.example.ui.theme.JetBrainsMono
+import com.example.ui.theme.QuietAccent
+import com.example.ui.theme.QuietTextSecondary
+import com.example.ui.theme.QuietTextTertiary
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -50,48 +51,40 @@ fun UpcomingView(
     val otherTasks = upcomingTasks.filter { it.dueDate == null || it.dueDate <= todayStr }
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         if (upcomingTasks.isEmpty()) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(280.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "🗓️", fontSize = 42.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No upcoming scheduled tasks",
-                            color = AnchorTextPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Add dates to tasks like 'Dentist next Friday at 2pm'",
-                            color = AnchorTextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
+                QuietEmptyState(message = "Nothing upcoming")
             }
         } else {
             // Tomorrow Section
             if (tomorrowTasks.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "TOMORROW (${tomorrowTasks.size})",
-                        color = AnchorCyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(top = 10.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "TOMORROW",
+                            fontFamily = JetBrainsMono,
+                            fontSize = 11.sp,
+                            color = QuietAccent,
+                            letterSpacing = 0.14.em
+                        )
+                        Text(
+                            text = "${tomorrowTasks.size}",
+                            fontFamily = JetBrainsMono,
+                            fontSize = 11.sp,
+                            color = QuietTextTertiary,
+                            letterSpacing = 0.14.em
+                        )
+                    }
+                    QuietHairline(modifier = Modifier.padding(horizontal = 24.dp))
                 }
                 items(tomorrowTasks, key = { "tomorrow_${it.id}" }) { item ->
                     AnchorCard(
@@ -106,16 +99,32 @@ fun UpcomingView(
                 }
             }
 
-            // Later This Week / Month
+            // Later Section
             if (laterTasks.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "LATER & UPCOMING (${laterTasks.size})",
-                        color = AnchorTextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "LATER TIMELINES",
+                            fontFamily = JetBrainsMono,
+                            fontSize = 11.sp,
+                            color = QuietTextSecondary,
+                            letterSpacing = 0.14.em
+                        )
+                        Text(
+                            text = "${laterTasks.size}",
+                            fontFamily = JetBrainsMono,
+                            fontSize = 11.sp,
+                            color = QuietTextTertiary,
+                            letterSpacing = 0.14.em
+                        )
+                    }
+                    QuietHairline(modifier = Modifier.padding(horizontal = 24.dp))
                 }
                 items(laterTasks, key = { "later_${it.id}" }) { item ->
                     AnchorCard(
@@ -130,16 +139,32 @@ fun UpcomingView(
                 }
             }
 
-            // Other scheduled
+            // Other Scheduled
             if (otherTasks.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "OTHER SCHEDULED (${otherTasks.size})",
-                        color = AnchorTextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "OTHER SCHEDULED",
+                            fontFamily = JetBrainsMono,
+                            fontSize = 11.sp,
+                            color = QuietTextSecondary,
+                            letterSpacing = 0.14.em
+                        )
+                        Text(
+                            text = "${otherTasks.size}",
+                            fontFamily = JetBrainsMono,
+                            fontSize = 11.sp,
+                            color = QuietTextTertiary,
+                            letterSpacing = 0.14.em
+                        )
+                    }
+                    QuietHairline(modifier = Modifier.padding(horizontal = 24.dp))
                 }
                 items(otherTasks, key = { "other_${it.id}" }) { item ->
                     AnchorCard(
@@ -156,7 +181,7 @@ fun UpcomingView(
         }
 
         item {
-            Spacer(modifier = Modifier.height(90.dp))
+            Spacer(modifier = Modifier.height(170.dp))
         }
     }
 }

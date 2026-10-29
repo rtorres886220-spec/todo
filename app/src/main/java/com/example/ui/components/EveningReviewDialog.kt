@@ -1,7 +1,6 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,44 +9,33 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ai.EveningReview
-import com.example.ui.theme.AnchorCyan
-import com.example.ui.theme.AnchorEmerald
-import com.example.ui.theme.AnchorIndigo
-import com.example.ui.theme.AnchorOutline
-import com.example.ui.theme.AnchorRose
-import com.example.ui.theme.AnchorSurface
-import com.example.ui.theme.AnchorSurfaceHighlight
-import com.example.ui.theme.AnchorSurfaceVariant
-import com.example.ui.theme.AnchorTextPrimary
-import com.example.ui.theme.AnchorTextSecondary
+import com.example.ui.theme.JetBrainsMono
+import com.example.ui.theme.Manrope
+import com.example.ui.theme.QuietAccent
+import com.example.ui.theme.QuietBackgroundLift
+import com.example.ui.theme.QuietHairline
+import com.example.ui.theme.QuietHighlight
+import com.example.ui.theme.QuietTextPrimary
+import com.example.ui.theme.QuietTextSecondary
+import com.example.ui.theme.QuietTextTertiary
+import com.example.ui.theme.QuietUrgency
+import com.example.ui.util.HapticHelper
 
 @Composable
 fun EveningReviewDialog(
@@ -56,177 +44,173 @@ fun EveningReviewDialog(
     onRescheduleTomorrow: (List<Long>) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = AnchorSurface),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, AnchorIndigo.copy(alpha = 0.4f), RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .drawBehind {
+                    drawRect(color = QuietBackgroundLift)
+                    // 1px top highlight
+                    drawLine(
+                        color = QuietHighlight,
+                        start = Offset(0f, 0.5f),
+                        end = Offset(size.width, 0.5f),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+                .padding(24.dp)
                 .testTag("evening_review_dialog")
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                // Header with Moon
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(AnchorIndigo.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Bedtime,
-                                contentDescription = "Evening Review",
-                                tint = AnchorIndigo,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Evening Review",
-                                color = AnchorTextPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Daily Closeout & Reset",
-                                color = AnchorIndigo,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
+                    Text(
+                        text = "EVENING REVIEW",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 12.sp,
+                        color = QuietTextSecondary,
+                        letterSpacing = 0.14.em
+                    )
 
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = AnchorTextSecondary)
-                    }
+                    Text(
+                        text = "CLOSE",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 11.sp,
+                        color = QuietTextSecondary,
+                        letterSpacing = 0.14.em,
+                        modifier = Modifier
+                            .clickable { onDismiss() }
+                            .padding(4.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 if (isLoading || review == null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp),
+                            .height(140.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = AnchorIndigo)
-                            Spacer(modifier = Modifier.height(12.dp))
+                            CircularProgressIndicator(
+                                color = QuietTextSecondary,
+                                strokeWidth = 1.5.dp
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
                             Text(
                                 text = "Summarizing today's achievements...",
-                                color = AnchorTextSecondary,
-                                fontSize = 13.sp
+                                fontFamily = JetBrainsMono,
+                                fontSize = 11.sp,
+                                color = QuietTextSecondary,
+                                letterSpacing = 0.14.em
                             )
                         }
                     }
                 } else {
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = AnchorSurfaceVariant),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = AnchorEmerald, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${review.completedCount} Anchors Completed Today",
-                                    color = AnchorEmerald,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = review.summary,
-                                color = AnchorTextPrimary,
-                                fontSize = 13.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "\"${review.reflection}\"",
-                                color = AnchorTextSecondary,
-                                fontSize = 12.sp,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                            )
-                        }
-                    }
+                    Text(
+                        text = "${review.completedCount} ANCHORS COMPLETED",
+                        fontFamily = JetBrainsMono,
+                        fontSize = 13.sp,
+                        color = QuietTextPrimary,
+                        letterSpacing = 0.14.em
+                    )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = review.summary,
+                        fontFamily = Manrope,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        color = QuietTextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "\"${review.reflection}\"",
+                        fontFamily = Manrope,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
+                        color = QuietTextTertiary
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+                    QuietHairline()
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     if (review.slippedTaskIds.isNotEmpty()) {
                         Text(
                             text = "${review.slippedTaskIds.size} ITEMS SLIPPED",
-                            color = AnchorRose,
+                            fontFamily = JetBrainsMono,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Black
+                            color = QuietUrgency,
+                            letterSpacing = 0.14.em
                         )
+
                         Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = "No guilt. Keep your momentum going by rescheduling to tomorrow in one tap.",
-                            color = AnchorTextSecondary,
-                            fontSize = 12.sp
+                            text = "Momentum continues tomorrow with a single tap.",
+                            fontFamily = Manrope,
+                            fontSize = 15.sp,
+                            color = QuietTextSecondary
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                        Button(
-                            onClick = { onRescheduleTomorrow(review.slippedTaskIds) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("reschedule_slipped_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = AnchorIndigo),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Update, contentDescription = null, tint = AnchorSurface)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Reschedule All to Tomorrow",
-                                color = AnchorSurface,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AnchorEmerald.copy(alpha = 0.15f))
-                                .padding(14.dp),
+                                .clickable {
+                                    HapticHelper.vibrate8ms(context)
+                                    onRescheduleTomorrow(review.slippedTaskIds)
+                                }
+                                .testTag("reschedule_slipped_button")
+                                .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "✨ Zero slipped tasks! Everything is anchored.",
-                                color = AnchorEmerald,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                text = "RESCHEDULE ALL TO TOMORROW",
+                                fontFamily = JetBrainsMono,
+                                fontSize = 12.sp,
+                                color = QuietAccent,
+                                letterSpacing = 0.14.em
                             )
                         }
+                    } else {
+                        Text(
+                            text = "Zero slipped tasks. Everything is grounded.",
+                            fontFamily = Manrope,
+                            fontSize = 15.sp,
+                            color = QuietTextPrimary
+                        )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                        Button(
-                            onClick = onDismiss,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AnchorIndigo),
-                            shape = RoundedCornerShape(12.dp)
+                                .clickable { onDismiss() }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Rest & Sleep Well", color = AnchorSurface, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "CLOSE REVIEW",
+                                fontFamily = JetBrainsMono,
+                                fontSize = 12.sp,
+                                color = QuietTextSecondary,
+                                letterSpacing = 0.14.em
+                            )
                         }
                     }
                 }

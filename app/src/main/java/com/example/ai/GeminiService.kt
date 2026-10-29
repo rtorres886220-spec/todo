@@ -58,7 +58,7 @@ class GeminiService {
         get() = BuildConfig.GEMINI_API_KEY
 
     private val hasApiKey: Boolean
-        get() = apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY"
+        get() = apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY" && apiKey != "your_api_key_here"
 
     /**
      * Parses a zero-friction text capture into one or multiple structured items.
@@ -400,7 +400,7 @@ class GeminiService {
         val hashtagPattern = Pattern.compile("#(\\w+)")
         val matcher = hashtagPattern.matcher(workingText)
         while (matcher.find()) {
-            tags.add(matcher.group(1).lowercase(Locale.getDefault()))
+            matcher.group(1)?.let { tags.add(it.lowercase(Locale.getDefault())) }
         }
         workingText = workingText.replace(Regex("#\\w+"), "").trim()
 

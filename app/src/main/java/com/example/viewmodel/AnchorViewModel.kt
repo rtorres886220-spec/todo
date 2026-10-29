@@ -306,6 +306,145 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun loadSampleData() {
+        viewModelScope.launch {
+            val cal = java.util.Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayStr = dateFormat.format(cal.time)
+
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+            val yesterdayStr = dateFormat.format(cal.time)
+
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 2)
+            val tomorrowStr = dateFormat.format(cal.time)
+
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 4)
+            val nextWeekStr = dateFormat.format(cal.time)
+
+            val now = System.currentTimeMillis()
+
+            val sampleItems = listOf(
+                // 1. Overdue task (past due date: yesterday)
+                AnchorItem(
+                    title = "Review Q3 financial forecast & tax filings",
+                    rawInput = "Review Q3 financial forecast & tax filings yesterday at 2pm",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_TODAY,
+                    dueDate = yesterdayStr,
+                    dueTime = "14:00",
+                    priority = AnchorItem.PRIORITY_HIGH,
+                    estimatedMinutes = 45,
+                    aiSorted = true,
+                    todayOrder = 99
+                ),
+                // 2. "Do this next" item with a due time on Today (todayOrder = 0)
+                AnchorItem(
+                    title = "Ship quarterly architecture review documentation",
+                    rawInput = "Ship quarterly architecture review documentation today at 11:30am 25m sprint",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_TODAY,
+                    dueDate = todayStr,
+                    dueTime = "11:30",
+                    priority = AnchorItem.PRIORITY_HIGH,
+                    estimatedMinutes = 25,
+                    aiSorted = true,
+                    todayOrder = 0
+                ),
+                // 3. Today task 2
+                AnchorItem(
+                    title = "Finalize contract redlines with legal council",
+                    rawInput = "Finalize contract redlines with legal council today at 15:00",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_TODAY,
+                    dueDate = todayStr,
+                    dueTime = "15:00",
+                    priority = AnchorItem.PRIORITY_MEDIUM,
+                    estimatedMinutes = 30,
+                    aiSorted = true,
+                    todayOrder = 1
+                ),
+                // 4. Today task 3
+                AnchorItem(
+                    title = "Confirm flight itinerary & hotel booking",
+                    rawInput = "Confirm flight itinerary & hotel booking today at 17:00",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_TODAY,
+                    dueDate = todayStr,
+                    dueTime = "17:00",
+                    priority = AnchorItem.PRIORITY_LOW,
+                    estimatedMinutes = 15,
+                    aiSorted = true,
+                    todayOrder = 2
+                ),
+                // 5. Inbox task 1
+                AnchorItem(
+                    title = "Schedule annual ophthalmologist examination",
+                    rawInput = "Schedule annual ophthalmologist examination #health",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_INBOX,
+                    tags = "health",
+                    aiSorted = true
+                ),
+                // 6. Inbox task 2
+                AnchorItem(
+                    title = "Replace water purification filter cartridge",
+                    rawInput = "Replace water purification filter cartridge #home #errands",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_INBOX,
+                    tags = "home,errands",
+                    aiSorted = true
+                ),
+                // 7. Upcoming task (Tomorrow)
+                AnchorItem(
+                    title = "Keynote presentation dry run with product leads",
+                    rawInput = "Keynote presentation dry run with product leads tomorrow at 09:00",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_INBOX,
+                    dueDate = tomorrowStr,
+                    dueTime = "09:00",
+                    priority = AnchorItem.PRIORITY_HIGH,
+                    estimatedMinutes = 60,
+                    aiSorted = true
+                ),
+                // 8. Upcoming task (Later)
+                AnchorItem(
+                    title = "Submit sprint retrospective synthesis",
+                    rawInput = "Submit sprint retrospective synthesis next week at 16:00",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_INBOX,
+                    dueDate = nextWeekStr,
+                    dueTime = "16:00",
+                    priority = AnchorItem.PRIORITY_MEDIUM,
+                    estimatedMinutes = 40,
+                    aiSorted = true
+                ),
+                // 9. Note
+                AnchorItem(
+                    title = "Focus rule: Maximum three critical outputs per daylight cycle. Guard morning hours against reactive input.",
+                    rawInput = "note: Focus rule: Maximum three critical outputs per daylight cycle. #philosophy #work",
+                    type = AnchorItem.TYPE_NOTE,
+                    status = AnchorItem.STATUS_INBOX,
+                    tags = "philosophy,work",
+                    aiSorted = true
+                ),
+                // 10. Done item
+                AnchorItem(
+                    title = "Deploy v2.4 staging release candidate",
+                    rawInput = "Deploy v2.4 staging release candidate #engineering",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_DONE,
+                    completedAt = now - 3600000L * 3,
+                    tags = "engineering",
+                    aiSorted = true
+                )
+            )
+
+            db.anchorDao().insertAll(sampleItems)
+            refreshOverdue()
+            _uiState.update { it.copy(isSettingsOpen = false) }
+        }
+    }
+
     fun triggerTestNotification(context: Context) {
         val sampleTask = todayItems.value.firstOrNull() ?: inboxItems.value.firstOrNull()
         if (sampleTask != null) {

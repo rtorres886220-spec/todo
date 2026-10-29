@@ -101,8 +101,8 @@ object NotificationHelper {
         val contentText = when (escalationLevel) {
             0 -> "Ready to anchor this down?"
             1 -> "Still on your deck: knock this out in 5 minutes."
-            2 -> "⚡ High priority alert: Take action now or reschedule."
-            else -> "🔥 Urgent focus: Let's finish '$title' right now."
+            2 -> "High priority alert: Take action now or reschedule."
+            else -> "Urgent focus: Let's finish '$title' right now."
         }
 
         val notification = NotificationCompat.Builder(context, channelId)

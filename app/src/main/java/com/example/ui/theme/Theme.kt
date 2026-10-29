@@ -6,39 +6,37 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = AnchorCyan,
-    onPrimary = Color(0xFF082F49),
-    primaryContainer = Color(0xFF0C4A6E),
-    onPrimaryContainer = AnchorCyanGlow,
-    secondary = AnchorIndigo,
-    onSecondary = Color(0xFF1E1B4B),
-    secondaryContainer = Color(0xFF312E81),
-    onSecondaryContainer = Color(0xFFC7D2FE),
-    tertiary = AnchorEmerald,
-    onTertiary = Color(0xFF022C22),
-    tertiaryContainer = Color(0xFF064E3B),
-    onTertiaryContainer = Color(0xFFA7F3D0),
-    background = AnchorBackground,
-    onBackground = AnchorTextPrimary,
-    surface = AnchorSurface,
-    onSurface = AnchorTextPrimary,
-    surfaceVariant = AnchorSurfaceVariant,
-    onSurfaceVariant = AnchorTextSecondary,
-    outline = AnchorOutline,
-    outlineVariant = AnchorOutlineVariant,
-    error = AnchorRose,
-    onError = Color(0xFF4C0519)
+private val QuietDarkColorScheme = darkColorScheme(
+    primary = QuietAccent,
+    onPrimary = Color(0xFF041E26),
+    primaryContainer = Color(0xFF0C2B34),
+    onPrimaryContainer = QuietAccent,
+    secondary = QuietTextSecondary,
+    onSecondary = QuietBackground,
+    secondaryContainer = QuietBackgroundLift,
+    onSecondaryContainer = QuietTextPrimary,
+    tertiary = QuietTextTertiary,
+    onTertiary = QuietTextPrimary,
+    background = QuietBackground,
+    onBackground = QuietTextPrimary,
+    surface = QuietBackgroundLift,
+    onSurface = QuietTextPrimary,
+    surfaceVariant = Color(0xFF101217),
+    onSurfaceVariant = QuietTextSecondary,
+    outline = QuietHairline,
+    outlineVariant = QuietHairline,
+    error = QuietUrgency,
+    onError = Color(0xFF280B04)
 )
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = true, // Dark mode by default per user request
-    dynamicColor: Boolean = false, // Keep Anchor custom dark theme consistent
+    darkTheme: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = DarkColorScheme,
+        colorScheme = QuietDarkColorScheme,
         typography = Typography,
         content = content
     )
