@@ -1,31 +1,30 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val QuietDarkColorScheme = darkColorScheme(
-    primary = QuietAccent,
-    onPrimary = Color(0xFF041E26),
-    primaryContainer = Color(0xFF0C2B34),
-    onPrimaryContainer = QuietAccent,
-    secondary = QuietTextSecondary,
-    onSecondary = QuietBackground,
-    secondaryContainer = QuietBackgroundLift,
-    onSecondaryContainer = QuietTextPrimary,
-    tertiary = QuietTextTertiary,
-    onTertiary = QuietTextPrimary,
-    background = QuietBackground,
-    onBackground = QuietTextPrimary,
-    surface = QuietBackgroundLift,
-    onSurface = QuietTextPrimary,
-    surfaceVariant = Color(0xFF101217),
-    onSurfaceVariant = QuietTextSecondary,
-    outline = QuietHairline,
-    outlineVariant = QuietHairline,
-    error = QuietUrgency,
+private val SoftDimensionalDarkColorScheme = darkColorScheme(
+    primary = AccentGold,
+    onPrimary = GoldOnDarkText,
+    primaryContainer = Surface2,
+    onPrimaryContainer = AccentGold,
+    secondary = TextSecondary,
+    onSecondary = SoftDarkBackground,
+    secondaryContainer = Surface1,
+    onSecondaryContainer = TextPrimary,
+    tertiary = TextTertiary,
+    onTertiary = TextPrimary,
+    background = SoftDarkBackground,
+    onBackground = TextPrimary,
+    surface = Surface1,
+    onSurface = TextPrimary,
+    surfaceVariant = Surface2,
+    onSurfaceVariant = TextSecondary,
+    outline = HairlineColor,
+    outlineVariant = SurfaceHighlight,
+    error = UrgencyCoral,
     onError = Color(0xFF280B04)
 )
 
@@ -36,7 +35,7 @@ fun MyApplicationTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = QuietDarkColorScheme,
+        colorScheme = SoftDimensionalDarkColorScheme,
         typography = Typography,
         content = content
     )

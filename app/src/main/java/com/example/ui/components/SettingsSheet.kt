@@ -30,19 +30,17 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietBackgroundLift
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.HairlineColor
+import com.example.ui.theme.Surface1
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
 import com.example.ui.util.HapticHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,15 +68,15 @@ fun SettingsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = QuietBackgroundLift,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        containerColor = Surface1,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(top = 12.dp, bottom = 8.dp)
-                    .width(36.dp)
-                    .height(1.dp)
-                    .drawBehind { drawRect(color = QuietHairline) }
+                    .width(40.dp)
+                    .height(3.dp)
+                    .drawBehind { drawRect(color = HairlineColor) }
             )
         }
     ) {
@@ -86,9 +84,8 @@ fun SettingsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .drawBehind {
-                    // 1px top highlight
                     drawLine(
-                        color = QuietHighlight,
+                        color = SurfaceHighlight,
                         start = Offset(0f, 0.5f),
                         end = Offset(size.width, 0.5f),
                         strokeWidth = 1.dp.toPx()
@@ -105,17 +102,17 @@ fun SettingsSheet(
             ) {
                 Text(
                     text = "SETTINGS",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 12.sp,
-                    color = QuietTextPrimary,
+                    color = TextPrimary,
                     letterSpacing = 0.14.em
                 )
 
                 Text(
                     text = "CLOSE",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietTextSecondary,
+                    color = TextSecondary,
                     letterSpacing = 0.14.em,
                     modifier = Modifier
                         .clickable { onDismiss() }
@@ -133,9 +130,9 @@ fun SettingsSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "MORNING BRIEF",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
                     Spacer(modifier = Modifier.height(6.dp))
@@ -145,9 +142,9 @@ fun SettingsSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "EVENING REVIEW",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
                     Spacer(modifier = Modifier.height(6.dp))
@@ -160,9 +157,9 @@ fun SettingsSheet(
             // Quiet Hours
             Text(
                 text = "QUIET HOURS",
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 11.sp,
-                color = QuietTextSecondary,
+                color = TextSecondary,
                 letterSpacing = 0.14.em
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -170,12 +167,12 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            // Escalation Intensity (No pills, quiet mono selector)
+            // Escalation Intensity
             Text(
                 text = "ESCALATION INTENSITY",
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 11.sp,
-                color = QuietTextSecondary,
+                color = TextSecondary,
                 letterSpacing = 0.14.em
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -184,9 +181,9 @@ fun SettingsSheet(
                     val isSelected = intensity.equals(level, ignoreCase = true)
                     Text(
                         text = level.uppercase(),
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = if (isSelected) QuietAccent else QuietTextTertiary,
+                        color = if (isSelected) AccentGold else TextTertiary,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable {
@@ -203,9 +200,9 @@ fun SettingsSheet(
             // Dead-App Check-In
             Text(
                 text = "INACTIVITY NUDGE",
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 11.sp,
-                color = QuietTextSecondary,
+                color = TextSecondary,
                 letterSpacing = 0.14.em
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -214,9 +211,9 @@ fun SettingsSheet(
                     val isSelected = deadApp == h
                     Text(
                         text = label,
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = if (isSelected) QuietAccent else QuietTextTertiary,
+                        color = if (isSelected) AccentGold else TextTertiary,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable {
@@ -244,9 +241,9 @@ fun SettingsSheet(
             ) {
                 Text(
                     text = "LOAD SAMPLE DATA",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietAccent,
+                    color = AccentGold,
                     letterSpacing = 0.14.em
                 )
             }
@@ -267,9 +264,9 @@ fun SettingsSheet(
             ) {
                 Text(
                     text = "DISPATCH TEST NUDGE",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietTextSecondary,
+                    color = TextSecondary,
                     letterSpacing = 0.14.em
                 )
             }
@@ -290,9 +287,9 @@ fun SettingsSheet(
             ) {
                 Text(
                     text = "SAVE SETTINGS",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 12.sp,
-                    color = QuietAccent,
+                    color = AccentGold,
                     letterSpacing = 0.14.em
                 )
             }
@@ -310,9 +307,8 @@ private fun QuietInputField(
         modifier = modifier
             .fillMaxWidth()
             .drawBehind {
-                // Bottom 0.5px hairline
                 drawLine(
-                    color = QuietHairline,
+                    color = HairlineColor,
                     start = Offset(0f, size.height),
                     end = Offset(size.width, size.height),
                     strokeWidth = 0.5.dp.toPx()
@@ -324,13 +320,13 @@ private fun QuietInputField(
             value = value,
             onValueChange = onValueChange,
             textStyle = TextStyle(
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 13.sp,
-                color = QuietTextPrimary,
+                color = TextPrimary,
                 letterSpacing = 0.14.em
             ),
             singleLine = true,
-            cursorBrush = SolidColor(QuietAccent),
+            cursorBrush = SolidColor(AccentGold),
             modifier = Modifier.fillMaxWidth()
         )
     }

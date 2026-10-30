@@ -1,14 +1,17 @@
 package com.example.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,24 +49,28 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.example.data.AnchorItem
 import com.example.ui.components.CaptureBar
 import com.example.ui.components.EditItemSheet
 import com.example.ui.components.EveningReviewDialog
 import com.example.ui.components.MorningBriefDialog
+import com.example.ui.components.NoteDetailSheet
 import com.example.ui.components.QuietNavigationBar
 import com.example.ui.components.SettingsSheet
 import com.example.ui.components.SnoozeCoachDialog
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.QuietBackground
-import com.example.ui.theme.QuietBackgroundLift
-import com.example.ui.theme.QuietDisplay
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
+import com.example.ui.components.TaskDetailSheet
+import com.example.ui.components.subtleFilmGrainOverlay
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.SoftDarkBackground
+import com.example.ui.theme.SoftDarkRadialLift
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 import com.example.ui.util.HapticHelper
 import com.example.ui.util.MotionUtil
 import com.example.ui.views.DoneView
@@ -106,6 +113,33 @@ fun MainScreen(viewModel: AnchorViewModel) {
         }
     }
 
+    // Task Detail Sheet & Note Detail Sheet state
+    var selectedDetailItem by remember { mutableStateOf<AnchorItem?>(null) }
+    var selectedNoteItem by remember { mutableStateOf<AnchorItem?>(null) }
+
+    // System BackHandler: pop open sheets and dialogs gracefully
+    val hasOpenOverlay = selectedDetailItem != null ||
+        selectedNoteItem != null ||
+        uiState.editingItem != null ||
+        uiState.isSettingsOpen ||
+        uiState.isMorningBriefOpen ||
+        uiState.isEveningReviewOpen ||
+        uiState.isSnoozeCoachOpen ||
+        uiState.activeTab != AnchorTab.TODAY
+
+    BackHandler(enabled = hasOpenOverlay) {
+        when {
+            selectedDetailItem != null -> selectedDetailItem = null
+            selectedNoteItem != null -> selectedNoteItem = null
+            uiState.editingItem != null -> viewModel.dismissEditing()
+            uiState.isSettingsOpen -> viewModel.dismissSettings()
+            uiState.isMorningBriefOpen -> viewModel.dismissMorningBrief()
+            uiState.isEveningReviewOpen -> viewModel.dismissEveningReview()
+            uiState.isSnoozeCoachOpen -> viewModel.dismissSnoozeCoach()
+            uiState.activeTab != AnchorTab.TODAY -> viewModel.setTab(AnchorTab.TODAY)
+        }
+    }
+
     // Trigger Snackbar on Undo message
     LaunchedEffect(uiState.undoMessage) {
         val msg = uiState.undoMessage
@@ -132,7 +166,7 @@ fun MainScreen(viewModel: AnchorViewModel) {
         SimpleDateFormat("MMMM d • yyyy", Locale.getDefault()).format(now).uppercase()
     }
 
-    // Header title: Weekday ONLY on Today; screen name on every other tab
+    // Header title: Weekday ONLY on Today; screen name on every other tab in 300-weight type
     val headerTitle = when (uiState.activeTab) {
         AnchorTab.TODAY -> weekdayStr
         AnchorTab.INBOX -> "Inbox"
@@ -143,32 +177,34 @@ fun MainScreen(viewModel: AnchorViewModel) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = QuietBackground,
+        containerColor = SoftDarkBackground,
         modifier = Modifier.nestedScroll(nestedScrollConnection)
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // Depth: #07080B with a soft radial glow (#12151C) centered behind content area
+                // Background: #08080A with a very faint radial lift (#101014) behind hero.
+                // Add a subtle film-grain noise overlay at 3% opacity to avoid banding and add richness.
                 .drawBehind {
-                    drawRect(color = QuietBackground)
+                    drawRect(color = SoftDarkBackground)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                QuietBackgroundLift,
+                                SoftDarkRadialLift,
                                 Color.Transparent
                             ),
-                            center = Offset(size.width * 0.5f, size.height * 0.42f),
-                            radius = size.width * 0.85f
+                            center = Offset(size.width * 0.5f, size.height * 0.32f),
+                            radius = size.width * 0.9f
                         )
                     )
                 }
+                .subtleFilmGrainOverlay()
         ) {
             // Main content with tab cross-fade and slight horizontal parallax
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 110.dp) // Space for floating quiet header
+                    .padding(top = 110.dp) // Space for floating header
             ) {
                 AnimatedContent(
                     targetState = uiState.activeTab,
@@ -198,19 +234,21 @@ fun MainScreen(viewModel: AnchorViewModel) {
                                 onSnooze = { viewModel.snoozeTask(it) },
                                 onComplete = { viewModel.completeTask(it) },
                                 onDelete = { viewModel.deleteTask(it) },
-                                onEdit = { viewModel.startEditing(it) },
+                                onEdit = { selectedDetailItem = it },
                                 onSnoozeCoach = { viewModel.openSnoozeCoach(it) }
                             )
                         }
                         AnchorTab.TODAY -> {
                             TodayView(
                                 todayTasks = todayTasks,
+                                upcomingTasks = upcomingTasks,
                                 overdueTasks = overdueTasks,
                                 onMoveToToday = { viewModel.moveToToday(it) },
                                 onSnooze = { viewModel.snoozeTask(it) },
                                 onComplete = { viewModel.completeTask(it) },
                                 onDelete = { viewModel.deleteTask(it) },
                                 onEdit = { viewModel.startEditing(it) },
+                                onTaskClick = { selectedDetailItem = it },
                                 onSnoozeCoach = { viewModel.openSnoozeCoach(it) },
                                 onOpenMorningBrief = { viewModel.openMorningBrief() },
                                 onOpenEveningReview = { viewModel.openEveningReview() }
@@ -223,7 +261,7 @@ fun MainScreen(viewModel: AnchorViewModel) {
                                 onSnooze = { viewModel.snoozeTask(it) },
                                 onComplete = { viewModel.completeTask(it) },
                                 onDelete = { viewModel.deleteTask(it) },
-                                onEdit = { viewModel.startEditing(it) },
+                                onEdit = { selectedDetailItem = it },
                                 onSnoozeCoach = { viewModel.openSnoozeCoach(it) }
                             )
                         }
@@ -231,7 +269,7 @@ fun MainScreen(viewModel: AnchorViewModel) {
                             NotesView(
                                 notes = notes,
                                 onDelete = { viewModel.deleteTask(it) },
-                                onEdit = { viewModel.startEditing(it) }
+                                onEdit = { selectedNoteItem = it }
                             )
                         }
                         AnchorTab.DONE -> {
@@ -254,16 +292,15 @@ fun MainScreen(viewModel: AnchorViewModel) {
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                QuietBackground,
-                                QuietBackground.copy(alpha = 0.85f),
+                                SoftDarkBackground,
+                                SoftDarkBackground.copy(alpha = 0.85f),
                                 Color.Transparent
                             )
                         )
                     )
             )
 
-            // Header:
-            // "Keep the big weekday only on Today. On every other tab, the large title is the screen name in the same ultra-light 48px type, with the date in mono beneath. Remove redundant sub-labels, and rename 'Archive' to 'Done' everywhere."
+            // Header: Display numeral/date weight 300, tracking -0.02em, metadata in Geist Mono
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -278,15 +315,20 @@ fun MainScreen(viewModel: AnchorViewModel) {
             ) {
                 Text(
                     text = headerTitle,
-                    style = QuietDisplay,
-                    color = QuietTextPrimary
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Light,
+                    fontSize = 42.sp,
+                    lineHeight = 46.sp,
+                    color = TextPrimary,
+                    letterSpacing = (-0.02).em
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = dateMonoStr,
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
+                    fontWeight = FontWeight.Light,
                     fontSize = 11.sp,
-                    color = QuietTextSecondary,
+                    color = TextSecondary,
                     letterSpacing = 0.14.em
                 )
             }
@@ -295,14 +337,14 @@ fun MainScreen(viewModel: AnchorViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(160.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                QuietBackground.copy(alpha = 0.75f),
-                                QuietBackground
+                                SoftDarkBackground.copy(alpha = 0.75f),
+                                SoftDarkBackground
                             )
                         )
                     )
@@ -334,7 +376,62 @@ fun MainScreen(viewModel: AnchorViewModel) {
             }
         }
 
-        // Modals & Sheets with quiet aesthetic
+        // Shared-element / detail expansion sheet
+        AnimatedVisibility(
+            visible = selectedDetailItem != null,
+            enter = fadeIn(tween(220)) + slideInVertically(
+                animationSpec = spring(stiffness = 300f, dampingRatio = 0.85f),
+                initialOffsetY = { fullHeight -> (fullHeight * 0.15f).toInt() }
+            ),
+            exit = fadeOut(tween(180)) + slideOutVertically(
+                animationSpec = spring(stiffness = 300f, dampingRatio = 0.85f),
+                targetOffsetY = { fullHeight -> (fullHeight * 0.15f).toInt() }
+            )
+        ) {
+            selectedDetailItem?.let { item ->
+                TaskDetailSheet(
+                    item = item,
+                    onEdit = {
+                        val current = item
+                        selectedDetailItem = null
+                        viewModel.startEditing(current)
+                    },
+                    onComplete = {
+                        viewModel.completeTask(item)
+                        selectedDetailItem = null
+                    },
+                    onToggleSubtask = { index, completed ->
+                        viewModel.toggleSubtask(item, index, completed) { updated ->
+                            selectedDetailItem = updated
+                        }
+                    },
+                    onAddSubtask = { text ->
+                        viewModel.addSubtask(item, text) { updated ->
+                            selectedDetailItem = updated
+                        }
+                    },
+                    onDismiss = { selectedDetailItem = null }
+                )
+            }
+        }
+
+        // Note Detail & Reader Sheet
+        if (selectedNoteItem != null) {
+            NoteDetailSheet(
+                item = selectedNoteItem!!,
+                onSave = { updated ->
+                    viewModel.updateItem(updated)
+                    selectedNoteItem = null
+                },
+                onDelete = {
+                    viewModel.deleteTask(it)
+                    selectedNoteItem = null
+                },
+                onDismiss = { selectedNoteItem = null }
+            )
+        }
+
+        // Modals & Sheets
         if (uiState.isMorningBriefOpen) {
             MorningBriefDialog(
                 brief = uiState.morningBrief,

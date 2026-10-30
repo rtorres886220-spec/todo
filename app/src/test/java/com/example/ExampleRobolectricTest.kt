@@ -32,4 +32,18 @@ class ExampleRobolectricTest {
         val first = parsed[0]
         assertTrue(first.tags.contains("groceries"))
     }
+
+    @Test
+    fun `preferences persist user settings properly`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = com.example.data.AnchorPreferences.get(context)
+        prefs.morningBriefTime = "07:30"
+        prefs.eveningReviewTime = "21:15"
+        prefs.quietHours = "23:00 - 06:00"
+
+        val settings = prefs.getSettings()
+        assertEquals("07:30", settings.morningTime)
+        assertEquals("21:15", settings.eveningTime)
+        assertEquals("23:00 - 06:00", settings.quietHours)
+    }
 }

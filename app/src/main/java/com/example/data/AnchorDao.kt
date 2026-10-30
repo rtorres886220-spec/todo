@@ -32,8 +32,11 @@ interface AnchorDao {
     @Query("SELECT * FROM anchor_items WHERE id = :id LIMIT 1")
     suspend fun getItemById(id: Long): AnchorItem?
 
-    @Query("SELECT * FROM anchor_items WHERE status != 'DONE' AND type = 'task' AND dueDate IS NOT NULL AND dueDate < :currentDate")
-    suspend fun getOverdueItems(currentDate: String): List<AnchorItem>
+    @Query("SELECT * FROM anchor_items WHERE status != 'DONE' AND type = 'task' AND dueDate IS NOT NULL AND (dueDate < :currentDate OR (dueDate = :currentDate AND dueTime IS NOT NULL AND dueTime < :currentTime))")
+    suspend fun getOverdueItems(currentDate: String, currentTime: String): List<AnchorItem>
+
+    @Query("SELECT * FROM anchor_items WHERE status != 'DONE' AND type = 'task' AND dueDate BETWEEN :startDate AND :endDate ORDER BY dueDate ASC, dueTime ASC")
+    fun getItemsForDateRange(startDate: String, endDate: String): Flow<List<AnchorItem>>
 
     @Query("SELECT * FROM anchor_items WHERE status != 'DONE' AND snoozeCount >= :minSnoozes")
     fun getHabitualSnoozedItems(minSnoozes: Int = 3): Flow<List<AnchorItem>>

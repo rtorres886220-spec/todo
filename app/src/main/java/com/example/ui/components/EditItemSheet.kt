@@ -35,15 +35,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietBackgroundLift
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.HairlineColor
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.Surface1
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
 import com.example.ui.util.HapticHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,15 +67,15 @@ fun EditItemSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = QuietBackgroundLift,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        containerColor = Surface1,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(top = 12.dp, bottom = 8.dp)
-                    .width(36.dp)
-                    .height(1.dp)
-                    .drawBehind { drawRect(color = QuietHairline) }
+                    .width(40.dp)
+                    .height(3.dp)
+                    .drawBehind { drawRect(color = HairlineColor) }
             )
         }
     ) {
@@ -83,9 +83,8 @@ fun EditItemSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .drawBehind {
-                    // 1px top highlight
                     drawLine(
-                        color = QuietHighlight,
+                        color = SurfaceHighlight,
                         start = Offset(0f, 0.5f),
                         end = Offset(size.width, 0.5f),
                         strokeWidth = 1.dp.toPx()
@@ -102,17 +101,17 @@ fun EditItemSheet(
             ) {
                 Text(
                     text = "EDIT ANCHOR",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 12.sp,
-                    color = QuietTextPrimary,
+                    color = TextPrimary,
                     letterSpacing = 0.14.em
                 )
 
                 Text(
                     text = "CANCEL",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietTextSecondary,
+                    color = TextSecondary,
                     letterSpacing = 0.14.em,
                     modifier = Modifier
                         .clickable { onDismiss() }
@@ -125,9 +124,9 @@ fun EditItemSheet(
             // Title input
             Text(
                 text = "CONTENT",
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 11.sp,
-                color = QuietTextSecondary,
+                color = TextSecondary,
                 letterSpacing = 0.14.em
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -136,7 +135,7 @@ fun EditItemSheet(
                     .fillMaxWidth()
                     .drawBehind {
                         drawLine(
-                            color = QuietHairline,
+                            color = HairlineColor,
                             start = Offset(0f, size.height),
                             end = Offset(size.width, size.height),
                             strokeWidth = 0.5.dp.toPx()
@@ -148,12 +147,12 @@ fun EditItemSheet(
                     value = title,
                     onValueChange = { title = it },
                     textStyle = TextStyle(
-                        fontFamily = Manrope,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Light,
                         fontSize = 16.sp,
-                        color = QuietTextPrimary
+                        color = TextPrimary
                     ),
-                    cursorBrush = SolidColor(QuietAccent),
+                    cursorBrush = SolidColor(AccentGold),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("edit_title_input")
@@ -162,13 +161,13 @@ fun EditItemSheet(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Type Toggle (Quiet mono)
+            // Type Toggle
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 Text(
                     text = "TASK",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = if (type == AnchorItem.TYPE_TASK) QuietAccent else QuietTextTertiary,
+                    color = if (type == AnchorItem.TYPE_TASK) AccentGold else TextTertiary,
                     letterSpacing = 0.14.em,
                     modifier = Modifier
                         .clickable { type = AnchorItem.TYPE_TASK }
@@ -176,9 +175,9 @@ fun EditItemSheet(
                 )
                 Text(
                     text = "NOTE",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = if (type == AnchorItem.TYPE_NOTE) QuietAccent else QuietTextTertiary,
+                    color = if (type == AnchorItem.TYPE_NOTE) AccentGold else TextTertiary,
                     letterSpacing = 0.14.em,
                     modifier = Modifier
                         .clickable { type = AnchorItem.TYPE_NOTE }
@@ -196,9 +195,9 @@ fun EditItemSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "DUE DATE (YYYY-MM-DD)",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
                     Spacer(modifier = Modifier.height(6.dp))
@@ -208,13 +207,56 @@ fun EditItemSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "TIME (HH:MM)",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     QuietEditField(value = dueTime, onValueChange = { dueTime = it })
+                }
+            }
+
+            // Quick date chips
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val cal = java.util.Calendar.getInstance()
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                val todayStr = sdf.format(cal.time)
+                cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                val tomorrowStr = sdf.format(cal.time)
+
+                Text(
+                    text = "TODAY",
+                    fontFamily = GeistMono,
+                    fontSize = 11.sp,
+                    color = if (dueDate == todayStr) AccentGold else TextTertiary,
+                    letterSpacing = 0.14.em,
+                    modifier = Modifier
+                        .clickable { dueDate = todayStr }
+                        .padding(vertical = 4.dp)
+                )
+                Text(
+                    text = "TOMORROW",
+                    fontFamily = GeistMono,
+                    fontSize = 11.sp,
+                    color = if (dueDate == tomorrowStr) AccentGold else TextTertiary,
+                    letterSpacing = 0.14.em,
+                    modifier = Modifier
+                        .clickable { dueDate = tomorrowStr }
+                        .padding(vertical = 4.dp)
+                )
+                if (dueDate.isNotEmpty()) {
+                    Text(
+                        text = "CLEAR DATE",
+                        fontFamily = GeistMono,
+                        fontSize = 11.sp,
+                        color = TextTertiary,
+                        letterSpacing = 0.14.em,
+                        modifier = Modifier
+                            .clickable { dueDate = ""; dueTime = "" }
+                            .padding(vertical = 4.dp)
+                    )
                 }
             }
 
@@ -228,21 +270,35 @@ fun EditItemSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "PRIORITY",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    QuietEditField(value = priority, onValueChange = { priority = it })
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("high", "medium", "low").forEach { pLevel ->
+                            val isSelected = priority.equals(pLevel, ignoreCase = true)
+                            Text(
+                                text = pLevel.uppercase(),
+                                fontFamily = GeistMono,
+                                fontSize = 11.sp,
+                                color = if (isSelected) AccentGold else TextTertiary,
+                                letterSpacing = 0.14.em,
+                                modifier = Modifier
+                                    .clickable { priority = pLevel }
+                                    .padding(vertical = 4.dp)
+                            )
+                        }
+                    }
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "EST. MINUTES",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
                     Spacer(modifier = Modifier.height(6.dp))
@@ -250,14 +306,15 @@ fun EditItemSheet(
                 }
             }
 
+
             Spacer(modifier = Modifier.height(18.dp))
 
             // Tags
             Text(
                 text = "TAGS",
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 11.sp,
-                color = QuietTextSecondary,
+                color = TextSecondary,
                 letterSpacing = 0.14.em
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -289,9 +346,9 @@ fun EditItemSheet(
             ) {
                 Text(
                     text = "SAVE CHANGES",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 12.sp,
-                    color = QuietAccent,
+                    color = AccentGold,
                     letterSpacing = 0.14.em
                 )
             }
@@ -310,7 +367,7 @@ private fun QuietEditField(
             .fillMaxWidth()
             .drawBehind {
                 drawLine(
-                    color = QuietHairline,
+                    color = HairlineColor,
                     start = Offset(0f, size.height),
                     end = Offset(size.width, size.height),
                     strokeWidth = 0.5.dp.toPx()
@@ -322,13 +379,13 @@ private fun QuietEditField(
             value = value,
             onValueChange = onValueChange,
             textStyle = TextStyle(
-                fontFamily = JetBrainsMono,
+                fontFamily = GeistMono,
                 fontSize = 13.sp,
-                color = QuietTextPrimary,
+                color = TextPrimary,
                 letterSpacing = 0.14.em
             ),
             singleLine = true,
-            cursorBrush = SolidColor(QuietAccent),
+            cursorBrush = SolidColor(AccentGold),
             modifier = Modifier.fillMaxWidth()
         )
     }

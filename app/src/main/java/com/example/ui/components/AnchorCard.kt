@@ -3,14 +3,12 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,10 +16,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -36,41 +34,37 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietMono
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
-import com.example.ui.theme.QuietUrgency
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.Surface1
+import com.example.ui.theme.SurfaceHighlight
 import com.example.ui.theme.SwipeWashDone
 import com.example.ui.theme.SwipeWashSnooze
 import com.example.ui.theme.SwipeWashToday
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
+import com.example.ui.theme.UrgencyCoral
 import com.example.ui.util.HapticHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +87,6 @@ fun AnchorCard(
     // Completion ring animated progress (0f -> 1f)
     val completeAnim = remember { Animatable(if (isDone) 1f else 0f) }
 
-    // Haptic on completion trigger
     fun triggerComplete() {
         if (isDone) {
             onComplete()
@@ -112,15 +105,19 @@ fun AnchorCard(
         }
     }
 
+    val isTodayTask = item.status == AnchorItem.STATUS_TODAY
+
     val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { totalDistance ->
-            totalDistance * 0.35f
-        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
                     HapticHelper.vibrate8ms(context)
-                    onMoveToToday()
+                    if (isTodayTask) {
+                        triggerComplete()
+                    } else {
+                        onMoveToToday()
+                    }
                     false
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
@@ -133,7 +130,6 @@ fun AnchorCard(
         }
     )
 
-    // Trigger haptic when crossing swipe threshold
     var hasHapticFiredForSwipe by remember { mutableStateOf(false) }
     LaunchedEffect(dismissState.progress) {
         if (dismissState.progress > 0.35f && !hasHapticFiredForSwipe) {
@@ -147,7 +143,9 @@ fun AnchorCard(
     AnimatedVisibility(
         visible = !isCollapsing,
         exit = fadeOut(tween(200)) + shrinkVertically(tween(240)),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 5.dp)
     ) {
         SwipeToDismissBox(
             state = dismissState,
@@ -156,7 +154,7 @@ fun AnchorCard(
                 val progress = dismissState.progress.coerceIn(0f, 1f)
 
                 val washColor = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> SwipeWashToday
+                    SwipeToDismissBoxValue.StartToEnd -> if (isTodayTask) SwipeWashDone else SwipeWashToday
                     SwipeToDismissBoxValue.EndToStart -> SwipeWashSnooze
                     else -> Color.Transparent
                 }
@@ -164,11 +162,11 @@ fun AnchorCard(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(washColor.copy(alpha = (washColor.alpha * progress * 2.2f).coerceAtMost(0.35f)))
-                        .padding(horizontal = 24.dp),
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(washColor.copy(alpha = (washColor.alpha * progress * 2.2f).coerceAtMost(0.4f)))
+                        .padding(horizontal = 20.dp),
                     contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd
                 ) {
-                    // Thin stroke icon scaling in
                     val iconScale = (progress * 1.3f).coerceIn(0.4f, 1f)
                     Canvas(
                         modifier = Modifier
@@ -181,217 +179,184 @@ fun AnchorCard(
                     ) {
                         val stroke = 1.25.dp.toPx()
                         if (direction == SwipeToDismissBoxValue.StartToEnd) {
-                            // "Today" arrow or clock instrument icon (thin stroke)
-                            val center = Offset(size.width / 2f, size.height / 2f)
-                            drawCircle(
-                                color = QuietAccent,
-                                radius = size.minDimension / 2f - 2f,
-                                style = Stroke(width = stroke)
-                            )
-                            drawLine(
-                                color = QuietAccent,
-                                start = center,
-                                end = Offset(center.x, center.y - 5.dp.toPx()),
-                                strokeWidth = stroke,
-                                cap = StrokeCap.Round
-                            )
-                            drawLine(
-                                color = QuietAccent,
-                                start = center,
-                                end = Offset(center.x + 4.dp.toPx(), center.y),
-                                strokeWidth = stroke,
-                                cap = StrokeCap.Round
-                            )
+                            if (isTodayTask) {
+                                // Done checkmark icon
+                                val center = Offset(size.width / 2f, size.height / 2f)
+                                drawCircle(color = AccentGold, radius = size.minDimension / 2f - 2f, style = Stroke(width = stroke))
+                                drawLine(color = AccentGold, start = Offset(center.x - 4.dp.toPx(), center.y), end = Offset(center.x - 1.dp.toPx(), center.y + 3.dp.toPx()), strokeWidth = stroke, cap = StrokeCap.Round)
+                                drawLine(color = AccentGold, start = Offset(center.x - 1.dp.toPx(), center.y + 3.dp.toPx()), end = Offset(center.x + 4.dp.toPx(), center.y - 3.dp.toPx()), strokeWidth = stroke, cap = StrokeCap.Round)
+                            } else {
+                                // Gold Today instrument icon
+                                val center = Offset(size.width / 2f, size.height / 2f)
+                                drawCircle(color = AccentGold, radius = size.minDimension / 2f - 2f, style = Stroke(width = stroke))
+                                drawLine(color = AccentGold, start = center, end = Offset(center.x, center.y - 5.dp.toPx()), strokeWidth = stroke, cap = StrokeCap.Round)
+                                drawLine(color = AccentGold, start = center, end = Offset(center.x + 4.dp.toPx(), center.y), strokeWidth = stroke, cap = StrokeCap.Round)
+                            }
                         } else if (direction == SwipeToDismissBoxValue.EndToStart) {
-                            // "Snooze" forward skip indicator (thin stroke)
+                            // Slate Snooze chevron
                             val w = size.width
                             val h = size.height
-                            drawLine(
-                                color = QuietTextSecondary,
-                                start = Offset(w * 0.3f, h * 0.25f),
-                                end = Offset(w * 0.7f, h * 0.5f),
-                                strokeWidth = stroke,
-                                cap = StrokeCap.Round
-                            )
-                            drawLine(
-                                color = QuietTextSecondary,
-                                start = Offset(w * 0.7f, h * 0.5f),
-                                end = Offset(w * 0.3f, h * 0.75f),
-                                strokeWidth = stroke,
-                                cap = StrokeCap.Round
-                            )
+                            drawLine(color = TextSecondary, start = Offset(w * 0.35f, h * 0.25f), end = Offset(w * 0.65f, h * 0.5f), strokeWidth = stroke, cap = StrokeCap.Round)
+                            drawLine(color = TextSecondary, start = Offset(w * 0.65f, h * 0.5f), end = Offset(w * 0.35f, h * 0.75f), strokeWidth = stroke, cap = StrokeCap.Round)
                         }
                     }
                 }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
+
+            // Surface 1 row with 20px radius and top highlight
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onEdit() }
-                    .testTag("anchor_item_${item.id}")
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .drawBehind {
-                            // Overdue left ember hairline
-                            if (isOverdue) {
-                                drawLine(
-                                    color = QuietUrgency,
-                                    start = Offset(0f, 0f),
-                                    end = Offset(0f, size.height),
-                                    strokeWidth = 2.dp.toPx()
-                                )
-                            }
-                        }
-                        .padding(horizontal = 24.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Checkbox: Thin ring drawing closed on completion (SVG / Canvas stroke animation)
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { triggerComplete() }
-                            .testTag("complete_button_${item.id}"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Canvas(modifier = Modifier.size(20.dp)) {
-                            val strokeWidth = 1.25.dp.toPx()
-                            val center = Offset(size.width / 2f, size.height / 2f)
-                            val radius = size.minDimension / 2f - 2f
-
-                            // Outer static faint ring
-                            drawCircle(
-                                color = if (isOverdue) QuietUrgency.copy(alpha = 0.5f) else QuietTextTertiary,
-                                radius = radius,
-                                center = center,
-                                style = Stroke(width = strokeWidth)
+                    .graphicsLayer {
+                        if (isDone) alpha = 0.65f // Dimmed 65% opacity for Done, strikethrough-free
+                    }
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Surface1)
+                    .drawBehind {
+                        // 1px top highlight
+                        drawLine(
+                            color = SurfaceHighlight,
+                            start = Offset(20.dp.toPx() * 0.5f, 0.5f),
+                            end = Offset(size.width - 20.dp.toPx() * 0.5f, 0.5f),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        // Overdue left ember hairline
+                        if (isOverdue) {
+                            drawLine(
+                                color = UrgencyCoral,
+                                start = Offset(0f, 0f),
+                                end = Offset(0f, size.height),
+                                strokeWidth = 3.dp.toPx()
                             )
-
-                            // Animated sweep closing stroke
-                            if (completeAnim.value > 0f) {
-                                val strokeColor = if (isOverdue) QuietUrgency else QuietAccent
-                                drawArc(
-                                    color = strokeColor,
-                                    startAngle = -90f,
-                                    sweepAngle = completeAnim.value * 360f,
-                                    useCenter = false,
-                                    topLeft = Offset(center.x - radius, center.y - radius),
-                                    size = Size(radius * 2, radius * 2),
-                                    style = Stroke(width = strokeWidth + 0.5f, cap = StrokeCap.Round)
-                                )
-
-                                // Check tick when almost full
-                                if (completeAnim.value > 0.85f) {
-                                    val checkAlpha = ((completeAnim.value - 0.85f) / 0.15f).coerceIn(0f, 1f)
-                                    val p1 = Offset(center.x - 4.dp.toPx(), center.y)
-                                    val p2 = Offset(center.x - 1.dp.toPx(), center.y + 3.dp.toPx())
-                                    val p3 = Offset(center.x + 4.dp.toPx(), center.y - 3.dp.toPx())
-
-                                    drawLine(
-                                        color = strokeColor.copy(alpha = checkAlpha),
-                                        start = p1,
-                                        end = p2,
-                                        strokeWidth = strokeWidth,
-                                        cap = StrokeCap.Round
-                                    )
-                                    drawLine(
-                                        color = strokeColor.copy(alpha = checkAlpha),
-                                        start = p2,
-                                        end = p3,
-                                        strokeWidth = strokeWidth,
-                                        cap = StrokeCap.Round
-                                    )
-                                }
-                            }
                         }
                     }
+                    .clickable { onEdit() }
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+                    .testTag("anchor_item_${item.id}"),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Checkbox: Thin ring drawing closed on completion (48dp touch target)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { triggerComplete() }
+                        .testTag("complete_button_${item.id}"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.size(20.dp)) {
+                        val strokeWidth = 1.25.dp.toPx()
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val radius = size.minDimension / 2f - 2f
 
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // Title & secondary info
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = item.title,
-                            fontFamily = Manrope,
-                            fontSize = 15.sp,
-                            lineHeight = 21.sp,
-                            color = when {
-                                isDone -> QuietTextTertiary
-                                isOverdue -> QuietTextPrimary
-                                else -> QuietTextPrimary
-                            },
-                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                        drawCircle(
+                            color = if (isOverdue) UrgencyCoral.copy(alpha = 0.5f) else TextTertiary,
+                            radius = radius,
+                            center = center,
+                            style = Stroke(width = strokeWidth)
                         )
 
-                        // Snooze guidance if postponed 3+ times
-                        if (item.snoozeCount >= 3 && !isDone) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Postponed ${item.snoozeCount}x • Break down into micro-steps",
-                                fontFamily = JetBrainsMono,
-                                fontSize = 11.sp,
-                                color = QuietUrgency,
-                                letterSpacing = 0.14.em,
-                                modifier = Modifier.clickable { onSnoozeCoach() }
+                        if (completeAnim.value > 0f) {
+                            val strokeColor = if (isOverdue) UrgencyCoral else AccentGold
+                            drawArc(
+                                color = strokeColor,
+                                startAngle = -90f,
+                                sweepAngle = completeAnim.value * 360f,
+                                useCenter = false,
+                                topLeft = Offset(center.x - radius, center.y - radius),
+                                size = Size(radius * 2, radius * 2),
+                                style = Stroke(width = strokeWidth + 0.5f, cap = StrokeCap.Round)
                             )
-                        } else if (item.tagList.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = item.tagList.joinToString("  ") { "#$it" },
-                                fontFamily = JetBrainsMono,
-                                fontSize = 11.sp,
-                                color = QuietTextTertiary,
-                                letterSpacing = 0.14.em
-                            )
+                            if (completeAnim.value > 0.85f) {
+                                val checkAlpha = ((completeAnim.value - 0.85f) / 0.15f).coerceIn(0f, 1f)
+                                drawLine(
+                                    color = strokeColor.copy(alpha = checkAlpha),
+                                    start = Offset(center.x - 4.dp.toPx(), center.y),
+                                    end = Offset(center.x - 1.dp.toPx(), center.y + 3.dp.toPx()),
+                                    strokeWidth = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                                drawLine(
+                                    color = strokeColor.copy(alpha = checkAlpha),
+                                    start = Offset(center.x - 1.dp.toPx(), center.y + 3.dp.toPx()),
+                                    end = Offset(center.x + 4.dp.toPx(), center.y - 3.dp.toPx()),
+                                    strokeWidth = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                            }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                    // Right side: Mono time and duration
-                    val timeText = buildString {
-                        if (isOverdue) {
-                            append("OVERDUE ")
-                        }
-                        if (!item.dueTime.isNullOrBlank()) {
-                            append(item.dueTime)
-                        } else if (!item.dueDate.isNullOrBlank()) {
-                            append(item.dueDate)
-                        }
-                        if (item.estimatedMinutes != null) {
-                            if (isNotEmpty()) append("  ")
-                            append("${item.estimatedMinutes}M")
-                        }
-                    }.trim()
+                // Title & tags
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.title,
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
+                        color = when {
+                            isDone -> TextSecondary
+                            isOverdue -> TextPrimary
+                            else -> TextPrimary
+                        },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                    if (timeText.isNotEmpty()) {
+                    if (item.snoozeCount >= 3 && !isDone) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = timeText.uppercase(),
-                            fontFamily = JetBrainsMono,
+                            text = "Postponed ${item.snoozeCount}x • Break down into micro-steps",
+                            fontFamily = GeistMono,
                             fontSize = 11.sp,
-                            color = when {
-                                isOverdue -> QuietUrgency
-                                isDone -> QuietTextTertiary
-                                else -> QuietTextSecondary
-                            },
+                            color = UrgencyCoral,
+                            letterSpacing = 0.14.em,
+                            modifier = Modifier.clickable { onSnoozeCoach() }
+                        )
+                    } else if (item.tagList.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = item.tagList.joinToString("  ") { "#$it" },
+                            fontFamily = GeistMono,
+                            fontSize = 11.sp,
+                            color = TextTertiary,
                             letterSpacing = 0.14.em
                         )
                     }
                 }
 
-                // 0.5px hairline separator
-                QuietHairline(
-                    modifier = Modifier.padding(start = 24.dp),
-                    color = QuietHairline,
-                    thickness = 0.5.dp
-                )
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Right side: Mono time
+                val timeText = buildString {
+                    if (isOverdue) append("OVERDUE ")
+                    if (!item.dueTime.isNullOrBlank()) append(item.dueTime)
+                    else if (!item.dueDate.isNullOrBlank()) append(item.dueDate)
+                    if (item.estimatedMinutes != null) {
+                        if (isNotEmpty()) append("  ")
+                        append("${item.estimatedMinutes}M")
+                    }
+                }.trim()
+
+                if (timeText.isNotEmpty()) {
+                    Text(
+                        text = timeText.uppercase(),
+                        fontFamily = GeistMono,
+                        fontWeight = FontWeight.Light,
+                        fontSize = 11.sp,
+                        color = when {
+                            isOverdue -> UrgencyCoral
+                            isDone -> TextTertiary
+                            else -> TextSecondary
+                        },
+                        letterSpacing = 0.14.em
+                    )
+                }
             }
         }
     }

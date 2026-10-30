@@ -15,9 +15,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,11 +48,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -62,15 +62,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietGlassFill
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.AccentGoldGlow
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.GoldOnDarkText
+import com.example.ui.theme.HairlineColor
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.Surface2
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
 import com.example.ui.util.HapticHelper
 
 @Composable
@@ -87,27 +89,27 @@ fun CaptureBar(
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
 
-    // Breathing accent line animation on focus
-    val infiniteTransition = rememberInfiniteTransition(label = "breathe_pulse")
+    // Breathing thin gold line animation under text on focus
+    val infiniteTransition = rememberInfiniteTransition(label = "capture_breathe")
     val breathingAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.95f,
+        initialValue = 0.3f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "line_alpha"
     )
 
-    // Mic orb glow pulsing animation
-    val micGlowPulse by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.85f,
+    // Gold orb voice recording pulse
+    val micPulse by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.25f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1100, easing = FastOutSlowInEasing),
+            animation = tween(650, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "mic_glow"
+        label = "mic_pulse"
     )
 
     val voiceLauncher = rememberLauncherForActivityResult(
@@ -136,38 +138,7 @@ fun CaptureBar(
         modifier = modifier
             .fillMaxWidth()
             .imePadding()
-            // Visibly lifted glass surface:
-            // rgba(255,255,255,0.04) fill, 1px top highlight rgba(255,255,255,0.10), long soft shadow
-            .drawBehind {
-                // Long soft shadow cast upwards
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0x33000000),
-                            Color(0x66000000)
-                        ),
-                        startY = -24.dp.toPx(),
-                        endY = 0f
-                    ),
-                    topLeft = Offset(0f, -24.dp.toPx()),
-                    size = Size(size.width, 24.dp.toPx())
-                )
-
-                // Glass surface background
-                drawRect(color = Color(0xF207080B))
-                // rgba(255,255,255,0.04) glass fill
-                drawRect(color = QuietGlassFill)
-
-                // 1px top highlight rgba(255,255,255,0.10)
-                drawLine(
-                    color = QuietHighlight,
-                    start = Offset(0f, 0.5f),
-                    end = Offset(size.width, 0.5f),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-            .padding(horizontal = 24.dp, vertical = 12.dp)
+            .padding(horizontal = 24.dp, vertical = 6.dp)
     ) {
         // Clipboard detection banner
         AnimatedVisibility(
@@ -179,25 +150,29 @@ fun CaptureBar(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 10.dp)
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Surface2)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                         .testTag("clipboard_banner"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "CLIPBOARD // ${clipboardText.take(24)}",
-                        fontFamily = JetBrainsMono,
+                        text = "CLIP // ${clipboardText.take(24)}",
+                        fontFamily = GeistMono,
+                        fontWeight = FontWeight.Light,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em,
                         maxLines = 1,
                         modifier = Modifier.weight(1f)
                     )
 
                     Text(
-                        text = "ANCHOR THIS",
-                        fontFamily = JetBrainsMono,
+                        text = "ANCHOR",
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietAccent,
+                        color = AccentGold,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable {
@@ -208,13 +183,13 @@ fun CaptureBar(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
                         text = "DISMISS",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextTertiary,
+                        color = TextTertiary,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable { onDismissClipboard() }
@@ -224,216 +199,229 @@ fun CaptureBar(
             }
         }
 
-        // Input row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        // Floating Surface 2 glass pill (28px radius, top highlight, long soft shadow)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind {
+                    // Long soft shadow cast below and above
+                    drawRoundRect(
+                        color = Color(0x40000000),
+                        topLeft = Offset(0f, 6.dp.toPx()),
+                        size = size,
+                        cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx())
+                    )
+                }
+                .clip(RoundedCornerShape(28.dp))
+                .background(Surface2)
+                .drawBehind {
+                    // 1px top highlight (rgba(255,255,255,0.07))
+                    drawLine(
+                        color = SurfaceHighlight,
+                        start = Offset(28.dp.toPx() * 0.5f, 0.5f),
+                        end = Offset(size.width - (28.dp.toPx() * 0.5f), 0.5f),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+                .padding(horizontal = 18.dp, vertical = 8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 4.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { isFocused = it.isFocused }
-                        .testTag("capture_input"),
-                    textStyle = TextStyle(
-                        color = QuietTextPrimary,
-                        fontFamily = Manrope,
-                        fontWeight = FontWeight.Light,
-                        fontSize = 15.sp,
-                        letterSpacing = 0.sp
-                    ),
-                    singleLine = true,
-                    cursorBrush = SolidColor(QuietAccent),
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { submitAndClear() }
-                    ),
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        ) {
-                            if (text.isEmpty()) {
-                                Text(
-                                    text = "Capture a thought or action...",
-                                    color = QuietTextSecondary,
-                                    fontFamily = Manrope,
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 15.sp
+                        .weight(1f)
+                        .padding(vertical = 4.dp)
+                ) {
+                    BasicTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { isFocused = it.isFocused }
+                            .testTag("capture_input"),
+                        textStyle = TextStyle(
+                            color = TextPrimary,
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Light,
+                            fontSize = 15.sp,
+                            letterSpacing = 0.sp
+                        ),
+                        singleLine = true,
+                        cursorBrush = SolidColor(AccentGold),
+                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { submitAndClear() }),
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                if (text.isEmpty()) {
+                                    Text(
+                                        text = "Capture task, thought, or memo...",
+                                        color = TextSecondary,
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.Light,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+
+                    // Thin gold line breathes beneath the text on focus
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .align(Alignment.BottomCenter)
+                    ) {
+                        if (isFocused) {
+                            drawLine(
+                                color = AccentGold.copy(alpha = breathingAlpha),
+                                start = Offset(0f, 1f),
+                                end = Offset(size.width, 1f),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                if (text.isNotBlank()) {
+                    // Send action button
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(AccentGold)
+                            .clickable { submitAndClear() }
+                            .testTag("capture_send_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.size(20.dp)) {
+                            val stroke = 1.75.dp.toPx()
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            drawLine(
+                                color = GoldOnDarkText,
+                                start = Offset(center.x - 5.dp.toPx(), center.y),
+                                end = Offset(center.x + 5.dp.toPx(), center.y),
+                                strokeWidth = stroke,
+                                cap = StrokeCap.Round
+                            )
+                            drawLine(
+                                color = GoldOnDarkText,
+                                start = Offset(center.x + 1.dp.toPx(), center.y - 4.dp.toPx()),
+                                end = Offset(center.x + 5.dp.toPx(), center.y),
+                                strokeWidth = stroke,
+                                cap = StrokeCap.Round
+                            )
+                            drawLine(
+                                color = GoldOnDarkText,
+                                start = Offset(center.x + 1.dp.toPx(), center.y + 4.dp.toPx()),
+                                end = Offset(center.x + 5.dp.toPx(), center.y),
+                                strokeWidth = stroke,
+                                cap = StrokeCap.Round
+                            )
+                        }
+                    }
+                } else {
+                    // 44px gold orb containing a thin microphone glyph, pulsing with voice amplitude while recording
+                    val orbScale = if (isRecording) micPulse else 1f
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(AccentGold)
+                            .graphicsLayer {
+                                scaleX = orbScale
+                                scaleY = orbScale
+                            }
+                            .clickable {
+                                try {
+                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(
+                                            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                        )
+                                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak anchor...")
+                                    }
+                                    val hasHandler = context.packageManager.queryIntentActivities(intent, 0).isNotEmpty()
+                                    if (hasHandler) {
+                                        isRecording = true
+                                        voiceLauncher.launch(intent)
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Voice input not supported on this device", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (_: Exception) {
+                                    isRecording = false
+                                    android.widget.Toast.makeText(context, "Voice input unavailable", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .drawBehind {
+                                // 1px highlight
+                                drawCircle(
+                                    color = Color.White.copy(alpha = 0.3f),
+                                    radius = size.minDimension / 2f - 1.dp.toPx(),
+                                    style = Stroke(width = 1.dp.toPx())
                                 )
                             }
-                            innerTextField()
-                        }
-                    }
-                )
+                            .testTag("voice_capture_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.size(24.dp)) {
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            val stroke = 1.5.dp.toPx()
+                            val micW = 6.dp.toPx()
+                            val micH = 10.dp.toPx()
+                            val micTop = center.y - 6.5.dp.toPx()
+                            val micLeft = center.x - micW / 2f
 
-                // Breathing thin accent line under text on focus
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .align(Alignment.BottomCenter)
-                ) {
-                    if (isFocused) {
-                        drawLine(
-                            color = QuietAccent.copy(alpha = breathingAlpha),
-                            start = Offset(0f, 1f),
-                            end = Offset(size.width, 1f),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    } else {
-                        drawLine(
-                            color = QuietHairline,
-                            start = Offset(0f, 1f),
-                            end = Offset(size.width, 1f),
-                            strokeWidth = 0.5.dp.toPx()
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            if (text.isNotBlank()) {
-                // Submit trigger: clean instrument action
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clickable { submitAndClear() }
-                        .testTag("capture_send_button"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.size(22.dp)) {
-                        val stroke = 1.25.dp.toPx()
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        drawLine(
-                            color = QuietAccent,
-                            start = Offset(center.x - 6.dp.toPx(), center.y),
-                            end = Offset(center.x + 6.dp.toPx(), center.y),
-                            strokeWidth = stroke,
-                            cap = StrokeCap.Round
-                        )
-                        drawLine(
-                            color = QuietAccent,
-                            start = Offset(center.x + 2.dp.toPx(), center.y - 4.dp.toPx()),
-                            end = Offset(center.x + 6.dp.toPx(), center.y),
-                            strokeWidth = stroke,
-                            cap = StrokeCap.Round
-                        )
-                        drawLine(
-                            color = QuietAccent,
-                            start = Offset(center.x + 2.dp.toPx(), center.y + 4.dp.toPx()),
-                            end = Offset(center.x + 6.dp.toPx(), center.y),
-                            strokeWidth = stroke,
-                            cap = StrokeCap.Round
-                        )
-                    }
-                }
-            } else {
-                // Mic: 44px luminous orb with soft accent glow and a thin-stroke microphone glyph inside
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .clickable {
-                            try {
-                                isRecording = true
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                    )
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak anchor...")
-                                }
-                                voiceLauncher.launch(intent)
-                            } catch (_: Exception) {
-                                isRecording = false
-                            }
-                        }
-                        .testTag("voice_capture_button"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.size(44.dp)) {
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        val pulseMultiplier = if (isRecording) (micGlowPulse * 1.5f) else micGlowPulse
-
-                        // Soft radial accent glow
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    QuietAccent.copy(alpha = 0.28f * pulseMultiplier),
-                                    QuietAccent.copy(alpha = 0.08f * pulseMultiplier),
-                                    Color.Transparent
-                                ),
-                                center = center,
-                                radius = 22.dp.toPx()
+                            // Rounded mic capsule in GoldOnDarkText (#1A1407)
+                            drawRoundRect(
+                                color = GoldOnDarkText,
+                                topLeft = Offset(micLeft, micTop),
+                                size = Size(micW, micH),
+                                cornerRadius = CornerRadius(micW / 2f, micW / 2f),
+                                style = Stroke(width = stroke)
                             )
-                        )
 
-                        // Thin circular orb border
-                        drawCircle(
-                            color = QuietAccent.copy(alpha = 0.35f),
-                            radius = 18.dp.toPx(),
-                            center = center,
-                            style = Stroke(width = 1.dp.toPx())
-                        )
+                            // Cradle arc around lower capsule
+                            val cradleRadius = 5.5.dp.toPx()
+                            drawArc(
+                                color = GoldOnDarkText,
+                                startAngle = 0f,
+                                sweepAngle = 180f,
+                                useCenter = false,
+                                topLeft = Offset(center.x - cradleRadius, center.y - 2.5.dp.toPx()),
+                                size = Size(cradleRadius * 2, cradleRadius * 2),
+                                style = Stroke(width = stroke, cap = StrokeCap.Round)
+                            )
 
-                        // Thin-stroke microphone glyph inside
-                        val stroke = 1.25.dp.toPx()
-                        val micW = 6.dp.toPx()
-                        val micH = 10.dp.toPx()
-                        val micTop = center.y - 6.5.dp.toPx()
-                        val micLeft = center.x - micW / 2f
+                            // Stem line
+                            val stemTop = center.y - 2.5.dp.toPx() + cradleRadius
+                            drawLine(
+                                color = GoldOnDarkText,
+                                start = Offset(center.x, stemTop),
+                                end = Offset(center.x, stemTop + 3.5.dp.toPx()),
+                                strokeWidth = stroke,
+                                cap = StrokeCap.Round
+                            )
 
-                        // Rounded mic capsule
-                        drawRoundRect(
-                            color = QuietAccent,
-                            topLeft = Offset(micLeft, micTop),
-                            size = Size(micW, micH),
-                            cornerRadius = CornerRadius(micW / 2f, micW / 2f),
-                            style = Stroke(width = stroke)
-                        )
-
-                        // Cradle arc around lower capsule
-                        val cradleRadius = 5.5.dp.toPx()
-                        drawArc(
-                            color = QuietAccent,
-                            startAngle = 0f,
-                            sweepAngle = 180f,
-                            useCenter = false,
-                            topLeft = Offset(center.x - cradleRadius, center.y - 2.5.dp.toPx()),
-                            size = Size(cradleRadius * 2, cradleRadius * 2),
-                            style = Stroke(width = stroke, cap = StrokeCap.Round)
-                        )
-
-                        // Stem line
-                        val stemTop = center.y - 2.5.dp.toPx() + cradleRadius
-                        drawLine(
-                            color = QuietAccent,
-                            start = Offset(center.x, stemTop),
-                            end = Offset(center.x, stemTop + 3.5.dp.toPx()),
-                            strokeWidth = stroke,
-                            cap = StrokeCap.Round
-                        )
-
-                        // Base horizontal foot
-                        drawLine(
-                            color = QuietAccent,
-                            start = Offset(center.x - 3.5.dp.toPx(), stemTop + 3.5.dp.toPx()),
-                            end = Offset(center.x + 3.5.dp.toPx(), stemTop + 3.5.dp.toPx()),
-                            strokeWidth = stroke,
-                            cap = StrokeCap.Round
-                        )
+                            // Base horizontal foot
+                            drawLine(
+                                color = GoldOnDarkText,
+                                start = Offset(center.x - 3.5.dp.toPx(), stemTop + 3.5.dp.toPx()),
+                                end = Offset(center.x + 3.5.dp.toPx(), stemTop + 3.5.dp.toPx()),
+                                strokeWidth = stroke,
+                                cap = StrokeCap.Round
+                            )
+                        }
                     }
                 }
             }

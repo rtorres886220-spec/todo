@@ -151,4 +151,35 @@ object NotificationHelper {
             // Permission missing
         }
     }
+
+    fun showDailyBriefNotification(context: Context, isMorning: Boolean, headline: String) {
+        createChannels(context)
+
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("action", if (isMorning) "open_morning_brief" else "open_evening_review")
+        }
+        val openPendingIntent = PendingIntent.getActivity(
+            context,
+            if (isMorning) 8881 else 8882,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = if (isMorning) "Morning Anchor Brief" else "Evening Focus Review"
+        val notification = NotificationCompat.Builder(context, CHANNEL_CHECKIN)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(title)
+            .setContentText(headline)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openPendingIntent)
+            .build()
+
+        try {
+            NotificationManagerCompat.from(context).notify(if (isMorning) 8881 else 8882, notification)
+        } catch (_: SecurityException) {
+        }
+    }
 }
+

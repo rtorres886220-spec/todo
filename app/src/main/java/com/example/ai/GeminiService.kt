@@ -312,7 +312,7 @@ class GeminiService {
     }
 
     private fun callGeminiApi(prompt: String): String? {
-        val models = listOf("gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.8-flash")
+        val models = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
         for (model in models) {
             try {
                 val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"

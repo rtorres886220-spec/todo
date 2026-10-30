@@ -52,7 +52,7 @@ fun MorningBriefDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(28.dp))
                 .drawBehind {
                     drawRect(color = QuietBackgroundLift)
                     // 1px top highlight

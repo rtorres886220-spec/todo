@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -28,24 +26,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
+import com.example.ui.components.BentoGridCard
 import com.example.ui.components.QuietEmptyState
 import com.example.ui.components.QuietHairline
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
-import com.example.ui.util.HapticHelper
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.ui.components.getCategoryTint
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.TextTertiary
 
 @Composable
 fun NotesView(
@@ -64,7 +55,7 @@ fun NotesView(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // Tag filters (Quiet text filters, no pills)
+        // Tag filters
         if (allTags.isNotEmpty()) {
             item {
                 LazyRow(
@@ -76,9 +67,9 @@ fun NotesView(
                     item {
                         Text(
                             text = "ALL",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = GeistMono,
                             fontSize = 11.sp,
-                            color = if (selectedTag == null) QuietAccent else QuietTextTertiary,
+                            color = if (selectedTag == null) AccentGold else TextTertiary,
                             letterSpacing = 0.14.em,
                             modifier = Modifier
                                 .clickable { selectedTag = null }
@@ -89,9 +80,9 @@ fun NotesView(
                         val isSelected = selectedTag == tag
                         Text(
                             text = "#${tag.uppercase()}",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = GeistMono,
                             fontSize = 11.sp,
-                            color = if (isSelected) QuietAccent else QuietTextTertiary,
+                            color = if (isSelected) AccentGold else TextTertiary,
                             letterSpacing = 0.14.em,
                             modifier = Modifier
                                 .clickable { selectedTag = if (isSelected) null else tag }
@@ -108,102 +99,66 @@ fun NotesView(
                 QuietEmptyState(message = "No notes yet")
             }
         } else {
-            items(filteredNotes, key = { it.id }) { item ->
-                val dateStr = SimpleDateFormat("MMM d • HH:mm", Locale.getDefault()).format(Date(item.createdAt)).uppercase()
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onEdit(item) }
-                        .padding(horizontal = 24.dp, vertical = 14.dp)
-                        .testTag("note_card_${item.id}")
-                ) {
+            // "Notes use the bento grid with tinted cards."
+            val pairs = filteredNotes.chunked(2)
+            pairs.forEachIndexed { rowIndex, pair ->
+                item {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = dateStr,
-                            fontFamily = JetBrainsMono,
-                            fontSize = 11.sp,
-                            color = QuietTextTertiary,
-                            letterSpacing = 0.14.em
-                        )
+                        val leftItem = pair[0]
+                        val leftTint = getCategoryTint(leftItem)
+                        val leftHeight = if (rowIndex % 2 == 0) 165.dp else 140.dp
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Copy action
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clickable {
-                                        HapticHelper.vibrate8ms(context)
+                        Box(modifier = Modifier.weight(1f)) {
+                            BentoGridCard(
+                                item = leftItem,
+                                tint = leftTint,
+                                minHeight = leftHeight,
+                                staggerIndex = rowIndex * 2,
+                                onCardClick = { onEdit(leftItem) },
+                                onReminderClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Anchor Note", leftItem.title)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Note copied to clipboard", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+
+                        if (pair.size > 1) {
+                            val rightItem = pair[1]
+                            val rightTint = getCategoryTint(rightItem)
+                            val rightHeight = if (rowIndex % 2 == 0) 140.dp else 165.dp
+
+                            Box(modifier = Modifier.weight(1f)) {
+                                BentoGridCard(
+                                    item = rightItem,
+                                    tint = rightTint,
+                                    minHeight = rightHeight,
+                                    staggerIndex = rowIndex * 2 + 1,
+                                    onCardClick = { onEdit(rightItem) },
+                                    onReminderClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("Anchor Note", item.title)
+                                        val clip = ClipData.newPlainText("Anchor Note", rightItem.title)
                                         clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Note copied", Toast.LENGTH_SHORT).show()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "COPY",
-                                    fontFamily = JetBrainsMono,
-                                    fontSize = 11.sp,
-                                    color = QuietTextSecondary,
-                                    letterSpacing = 0.14.em
+                                        Toast.makeText(context, "Note copied to clipboard", Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Delete action
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clickable {
-                                        HapticHelper.vibrate8ms(context)
-                                        onDelete(item)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "DEL",
-                                    fontFamily = JetBrainsMono,
-                                    fontSize = 11.sp,
-                                    color = QuietTextTertiary,
-                                    letterSpacing = 0.14.em
-                                )
-                            }
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = item.title,
-                        fontFamily = Manrope,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp,
-                        color = QuietTextPrimary,
-                        letterSpacing = 0.sp
-                    )
-
-                    if (item.tagList.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = item.tagList.joinToString("  ") { "#$it" },
-                            fontFamily = JetBrainsMono,
-                            fontSize = 11.sp,
-                            color = QuietTextTertiary,
-                            letterSpacing = 0.14.em
-                        )
-                    }
                 }
-                QuietHairline(modifier = Modifier.padding(start = 24.dp))
             }
         }
 
         item {
-            Spacer(modifier = Modifier.height(170.dp))
+            Spacer(modifier = Modifier.height(180.dp))
         }
     }
 }

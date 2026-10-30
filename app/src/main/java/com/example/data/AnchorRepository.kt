@@ -202,11 +202,40 @@ class AnchorRepository(
     }
 
     suspend fun getOverdueItems(): List<AnchorItem> {
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        return dao.getOverdueItems(todayStr)
+        val now = Date()
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
+        return dao.getOverdueItems(todayStr, timeStr)
     }
 
     suspend fun getActiveTasksSync(): List<AnchorItem> {
         return dao.getAllActiveTasksSync()
     }
+
+    fun getItemsForDateRange(startDate: String, endDate: String): Flow<List<AnchorItem>> {
+        return dao.getItemsForDateRange(startDate, endDate)
+    }
+
+    suspend fun updateSubtask(item: AnchorItem, stepIndex: Int, completed: Boolean): AnchorItem {
+        val steps = item.aiBreakdownSteps?.split("\n")?.toMutableList() ?: mutableListOf()
+        if (stepIndex in steps.indices) {
+            val original = steps[stepIndex].replace(Regex("^\\[[ xX]\\]\\s*"), "")
+            steps[stepIndex] = if (completed) "[x] $original" else "[ ] $original"
+            val updated = item.copy(aiBreakdownSteps = steps.joinToString("\n"))
+            dao.update(updated)
+            return updated
+        }
+        return item
+    }
+
+    suspend fun addSubtask(item: AnchorItem, stepText: String): AnchorItem {
+        val trimmed = stepText.trim()
+        if (trimmed.isEmpty()) return item
+        val steps = item.aiBreakdownSteps?.split("\n")?.filter { it.isNotBlank() }?.toMutableList() ?: mutableListOf()
+        steps.add("[ ] $trimmed")
+        val updated = item.copy(aiBreakdownSteps = steps.joinToString("\n"))
+        dao.update(updated)
+        return updated
+    }
 }
+

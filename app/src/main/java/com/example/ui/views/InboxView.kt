@@ -1,7 +1,6 @@
 package com.example.ui.views
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,10 +20,10 @@ import com.example.data.AnchorItem
 import com.example.ui.components.AnchorCard
 import com.example.ui.components.QuietEmptyState
 import com.example.ui.components.QuietHairline
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
-import com.example.ui.theme.QuietUrgency
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
+import com.example.ui.theme.UrgencyCoral
 
 @Composable
 fun InboxView(
@@ -53,17 +52,17 @@ fun InboxView(
                 ) {
                     Text(
                         text = "OVERDUE",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietUrgency,
+                        color = UrgencyCoral,
                         letterSpacing = 0.14.em
                     )
                     Spacer(modifier = Modifier.padding(start = 8.dp))
                     Text(
                         text = "${overdueItems.size}",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietUrgency,
+                        color = UrgencyCoral,
                         letterSpacing = 0.14.em
                     )
                 }
@@ -92,17 +91,17 @@ fun InboxView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "UNSORTED INBOX",
-                    fontFamily = JetBrainsMono,
+                    text = "UNSORTED CAPTURES",
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietTextSecondary,
+                    color = TextSecondary,
                     letterSpacing = 0.14.em
                 )
                 Text(
                     text = "${inboxItems.size} ITEMS",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietTextTertiary,
+                    color = TextTertiary,
                     letterSpacing = 0.14.em
                 )
             }
@@ -128,7 +127,7 @@ fun InboxView(
         }
 
         item {
-            Spacer(modifier = Modifier.height(170.dp))
+            Spacer(modifier = Modifier.height(180.dp))
         }
     }
 }

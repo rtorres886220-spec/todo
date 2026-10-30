@@ -11,6 +11,8 @@ import com.example.ai.SnoozeBreakdown
 import com.example.data.AnchorDatabase
 import com.example.data.AnchorItem
 import com.example.data.AnchorRepository
+import com.example.data.AnchorPreferences
+import com.example.notification.AnchorAlarmScheduler
 import com.example.notification.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,6 +58,7 @@ data class AnchorUiState(
 
 class AnchorViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val app: Application = application
     private val db = AnchorDatabase.getDatabase(application)
     private val geminiService = GeminiService()
     private val repository = AnchorRepository(db.anchorDao(), geminiService, viewModelScope)
@@ -74,6 +77,17 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     val overdueItems: StateFlow<List<AnchorItem>> = _overdueItems.asStateFlow()
 
     init {
+        val prefs = AnchorPreferences.get(app)
+        _uiState.update {
+            it.copy(
+                morningTime = prefs.morningBriefTime,
+                eveningTime = prefs.eveningReviewTime,
+                quietHours = prefs.quietHours,
+                escalationIntensity = prefs.escalationIntensity,
+                deadAppHours = prefs.deadAppHours
+            )
+        }
+        AnchorAlarmScheduler.scheduleDailyBriefs(app, prefs.morningBriefTime, prefs.eveningReviewTime)
         refreshOverdue()
         updateLastActive()
     }
@@ -95,7 +109,11 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun capture(text: String, sharedUri: String? = null) {
         if (text.isBlank() && sharedUri == null) return
         viewModelScope.launch {
-            repository.captureInstant(text, sharedUri)
+            val id = repository.captureInstant(text, sharedUri)
+            val created = repository.getItem(id)
+            if (created != null && created.dueDate != null) {
+                AnchorAlarmScheduler.scheduleTaskReminder(app, created)
+            }
             refreshOverdue()
         }
     }
@@ -103,6 +121,10 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun moveToToday(item: AnchorItem) {
         viewModelScope.launch {
             repository.moveToToday(item)
+            val updated = repository.getItem(item.id)
+            if (updated != null && updated.dueDate != null) {
+                AnchorAlarmScheduler.scheduleTaskReminder(app, updated)
+            }
             showUndo(item, "Moved to Today")
         }
     }
@@ -116,6 +138,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun completeTask(item: AnchorItem) {
         viewModelScope.launch {
+            AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
             repository.markCompleted(item)
             refreshOverdue()
             showUndo(item, "Task completed!")
@@ -125,13 +148,21 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun uncompleteTask(item: AnchorItem) {
         viewModelScope.launch {
             repository.uncomplete(item)
+            if (item.dueDate != null) {
+                AnchorAlarmScheduler.scheduleTaskReminder(app, item)
+            }
             showUndo(item, "Restored to Inbox")
         }
     }
 
     fun snoozeTask(item: AnchorItem, hours: Int = 24) {
         viewModelScope.launch {
+            AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
             repository.snooze(item, hours)
+            val updated = repository.getItem(item.id)
+            if (updated != null && updated.dueDate != null) {
+                AnchorAlarmScheduler.scheduleTaskReminder(app, updated)
+            }
             refreshOverdue()
             showUndo(item, "Snoozed for ${if (hours == 24) "1 day" else "$hours hours"}")
         }
@@ -139,6 +170,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun deleteTask(item: AnchorItem) {
         viewModelScope.launch {
+            AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
             repository.delete(item)
             refreshOverdue()
             showUndo(item, "Item deleted")
@@ -148,8 +180,27 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun updateItem(item: AnchorItem) {
         viewModelScope.launch {
             repository.updateItem(item)
+            if (item.status != AnchorItem.STATUS_DONE && item.dueDate != null) {
+                AnchorAlarmScheduler.scheduleTaskReminder(app, item)
+            } else {
+                AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
+            }
             refreshOverdue()
             _uiState.update { it.copy(editingItem = null) }
+        }
+    }
+
+    fun toggleSubtask(item: AnchorItem, stepIndex: Int, completed: Boolean, onUpdated: (AnchorItem) -> Unit) {
+        viewModelScope.launch {
+            val updated = repository.updateSubtask(item, stepIndex, completed)
+            onUpdated(updated)
+        }
+    }
+
+    fun addSubtask(item: AnchorItem, stepText: String, onUpdated: (AnchorItem) -> Unit) {
+        viewModelScope.launch {
+            val updated = repository.addSubtask(item, stepText)
+            onUpdated(updated)
         }
     }
 
@@ -227,7 +278,6 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(isEveningReviewOpen = true, isGeneratingAi = true) }
         viewModelScope.launch {
             val startOfDay = getStartOfDayTimestamp()
-            val done = db.anchorDao().getAllItems() // We can also use done list
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val active = repository.getActiveTasksSync()
             val slipped = active.filter { it.status == AnchorItem.STATUS_TODAY || it.dueDate == todayStr }
@@ -294,6 +344,14 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun updateSettings(morning: String, evening: String, quiet: String, intensity: String, deadAppH: Int) {
+        val prefs = AnchorPreferences.get(app)
+        prefs.morningBriefTime = morning
+        prefs.eveningReviewTime = evening
+        prefs.quietHours = quiet
+        prefs.escalationIntensity = intensity
+        prefs.deadAppHours = deadAppH
+        AnchorAlarmScheduler.scheduleDailyBriefs(app, morning, evening)
+
         _uiState.update {
             it.copy(
                 morningTime = morning,
@@ -324,117 +382,124 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
             val now = System.currentTimeMillis()
 
             val sampleItems = listOf(
-                // 1. Overdue task (past due date: yesterday)
+                // 1. Overdue task (Rose tint - overdue only)
                 AnchorItem(
-                    title = "Review Q3 financial forecast & tax filings",
-                    rawInput = "Review Q3 financial forecast & tax filings yesterday at 2pm",
+                    title = "Renew enterprise security & domain SSL certificates",
+                    rawInput = "Renew enterprise security & domain SSL certificates yesterday at 5pm #security #personal",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_TODAY,
                     dueDate = yesterdayStr,
-                    dueTime = "14:00",
+                    dueTime = "17:00",
                     priority = AnchorItem.PRIORITY_HIGH,
+                    tags = "security,personal",
                     estimatedMinutes = 45,
                     aiSorted = true,
                     todayOrder = 99
                 ),
-                // 2. "Do this next" item with a due time on Today (todayOrder = 0)
+                // 2. "Do this next" Hero card task with due time (Slate tint)
                 AnchorItem(
-                    title = "Ship quarterly architecture review documentation",
-                    rawInput = "Ship quarterly architecture review documentation today at 11:30am 25m sprint",
+                    title = "Quarterly systems architecture review & client sync",
+                    rawInput = "Quarterly systems architecture review & client sync today at 2:30pm 45m #meeting #work",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_TODAY,
                     dueDate = todayStr,
-                    dueTime = "11:30",
+                    dueTime = "14:30",
                     priority = AnchorItem.PRIORITY_HIGH,
-                    estimatedMinutes = 25,
+                    tags = "meeting,work",
+                    estimatedMinutes = 45,
                     aiSorted = true,
                     todayOrder = 0
                 ),
-                // 3. Today task 2
+                // 3. Today bento item (Sage tint)
                 AnchorItem(
-                    title = "Finalize contract redlines with legal council",
-                    rawInput = "Finalize contract redlines with legal council today at 15:00",
+                    title = "Team wellness sprint retrospective & stretch",
+                    rawInput = "Team wellness sprint retrospective & stretch today at 4pm #wellness #health",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_TODAY,
                     dueDate = todayStr,
-                    dueTime = "15:00",
+                    dueTime = "16:00",
                     priority = AnchorItem.PRIORITY_MEDIUM,
+                    tags = "wellness,health",
                     estimatedMinutes = 30,
                     aiSorted = true,
                     todayOrder = 1
                 ),
-                // 4. Today task 3
+                // 4. Today bento item (Apricot tint)
                 AnchorItem(
-                    title = "Confirm flight itinerary & hotel booking",
-                    rawInput = "Confirm flight itinerary & hotel booking today at 17:00",
+                    title = "Order studio acoustic baffles & hardware",
+                    rawInput = "Order studio acoustic baffles & hardware today at 6pm #order #studio",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_TODAY,
                     dueDate = todayStr,
-                    dueTime = "17:00",
+                    dueTime = "18:00",
                     priority = AnchorItem.PRIORITY_LOW,
-                    estimatedMinutes = 15,
+                    tags = "order,studio",
+                    estimatedMinutes = 20,
                     aiSorted = true,
                     todayOrder = 2
                 ),
-                // 5. Inbox task 1
+                // 5. Today bento item (Orchid tint)
                 AnchorItem(
-                    title = "Schedule annual ophthalmologist examination",
-                    rawInput = "Schedule annual ophthalmologist examination #health",
+                    title = "Design team celebration dinner reservations",
+                    rawInput = "Design team celebration dinner reservations today at 8pm #celebration #dinner",
+                    type = AnchorItem.TYPE_TASK,
+                    status = AnchorItem.STATUS_TODAY,
+                    dueDate = todayStr,
+                    dueTime = "20:00",
+                    priority = AnchorItem.PRIORITY_MEDIUM,
+                    tags = "celebration,dinner",
+                    estimatedMinutes = 15,
+                    aiSorted = true,
+                    todayOrder = 3
+                ),
+                // 6. Inbox task (Sage tint)
+                AnchorItem(
+                    title = "Schedule annual preventive ophthalmologist checkup",
+                    rawInput = "Schedule annual preventive ophthalmologist checkup #health",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_INBOX,
-                    tags = "health",
+                    tags = "health,wellness",
                     aiSorted = true
                 ),
-                // 6. Inbox task 2
+                // 7. Inbox task (Apricot tint)
                 AnchorItem(
-                    title = "Replace water purification filter cartridge",
-                    rawInput = "Replace water purification filter cartridge #home #errands",
+                    title = "Curate references for generative typography lecture",
+                    rawInput = "Curate references for generative typography lecture #learn #course",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_INBOX,
-                    tags = "home,errands",
+                    tags = "learn,course",
                     aiSorted = true
                 ),
-                // 7. Upcoming task (Tomorrow)
+                // 8. Upcoming task (Slate tint)
                 AnchorItem(
-                    title = "Keynote presentation dry run with product leads",
-                    rawInput = "Keynote presentation dry run with product leads tomorrow at 09:00",
+                    title = "Keynote rehearsal with European engineering leads",
+                    rawInput = "Keynote rehearsal with European engineering leads tomorrow at 10am #meeting #doc",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_INBOX,
                     dueDate = tomorrowStr,
-                    dueTime = "09:00",
+                    dueTime = "10:00",
                     priority = AnchorItem.PRIORITY_HIGH,
+                    tags = "meeting,doc",
                     estimatedMinutes = 60,
                     aiSorted = true
                 ),
-                // 8. Upcoming task (Later)
+                // 9. Note (Orchid tint)
                 AnchorItem(
-                    title = "Submit sprint retrospective synthesis",
-                    rawInput = "Submit sprint retrospective synthesis next week at 16:00",
-                    type = AnchorItem.TYPE_TASK,
-                    status = AnchorItem.STATUS_INBOX,
-                    dueDate = nextWeekStr,
-                    dueTime = "16:00",
-                    priority = AnchorItem.PRIORITY_MEDIUM,
-                    estimatedMinutes = 40,
-                    aiSorted = true
-                ),
-                // 9. Note
-                AnchorItem(
-                    title = "Focus rule: Maximum three critical outputs per daylight cycle. Guard morning hours against reactive input.",
-                    rawInput = "note: Focus rule: Maximum three critical outputs per daylight cycle. #philosophy #work",
+                    title = "Design premise: Large rounded forms layered like satin and dark glass. Restraint and pixel precision over decoration.",
+                    rawInput = "note: Design premise: Large rounded forms layered like satin and dark glass. Restraint and pixel precision over decoration. #idea #philosophy",
                     type = AnchorItem.TYPE_NOTE,
                     status = AnchorItem.STATUS_INBOX,
-                    tags = "philosophy,work",
+                    tags = "idea,philosophy",
                     aiSorted = true
                 ),
-                // 10. Done item
+                // 10. Done item (Rose tint)
                 AnchorItem(
-                    title = "Deploy v2.4 staging release candidate",
-                    rawInput = "Deploy v2.4 staging release candidate #engineering",
+                    title = "Deploy production v3.2 build release candidate",
+                    rawInput = "Deploy production v3.2 build release candidate #release #personal",
                     type = AnchorItem.TYPE_TASK,
                     status = AnchorItem.STATUS_DONE,
-                    completedAt = now - 3600000L * 3,
-                    tags = "engineering",
+                    completedAt = now - 3600000L * 2,
+                    tags = "release,personal",
                     aiSorted = true
                 )
             )
