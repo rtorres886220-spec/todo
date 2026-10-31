@@ -86,7 +86,7 @@ fun NoteDetailSheet(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SoftDarkBackground.copy(alpha = 0.95f))
+            .background(Color.Black.copy(alpha = 0.45f))
             .clickable(onClick = onDismiss)
             .testTag("note_detail_sheet")
     ) {

@@ -95,7 +95,7 @@ class GeminiService {
         )
     }
 
-    private fun isFirebaseAiAvailable(): Boolean {
+    fun isFirebaseAiAvailable(): Boolean {
         return try {
             val app = try {
                 FirebaseApp.getInstance()

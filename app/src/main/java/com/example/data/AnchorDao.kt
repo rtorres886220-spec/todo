@@ -99,6 +99,9 @@ interface AnchorDao {
     @Query("SELECT COUNT(*) FROM anchor_items WHERE status = 'DONE' AND completedAt >= :sinceTimestamp")
     suspend fun countDoneSince(sinceTimestamp: Long): Int
 
+    @Query("SELECT COUNT(*) FROM anchor_items")
+    suspend fun getTotalItemCount(): Int
+
     @Query("SELECT * FROM anchor_items WHERE status != 'DONE' AND type = 'task'")
     suspend fun getAllActiveTasksSync(): List<AnchorItem>
 

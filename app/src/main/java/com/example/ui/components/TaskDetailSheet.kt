@@ -95,7 +95,7 @@ fun TaskDetailSheet(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SoftDarkBackground.copy(alpha = 0.94f))
+            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f))
             .clickable(onClick = onDismiss) // tap backdrop to dismiss
     ) {
         Column(

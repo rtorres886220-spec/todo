@@ -13,6 +13,7 @@ import com.example.data.AnchorDatabase
 import com.example.data.AnchorItem
 import com.example.data.AnchorPreferences
 import com.example.data.AnchorRepository
+import com.example.data.DiagnosticsReport
 import com.example.notification.AnchorAlarmScheduler
 import com.example.notification.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,9 @@ data class AnchorUiState(
     val eveningTime: String = "20:00",
     val quietHours: String = "22:00 - 07:00",
     val escalationIntensity: String = "Standard",
-    val deadAppHours: Int = 6
+    val deadAppHours: Int = 6,
+    val diagnosticsReport: DiagnosticsReport? = null,
+    val isRunningDiagnostics: Boolean = false
 )
 
 class AnchorViewModel(application: Application) : AndroidViewModel(application) {
@@ -574,6 +577,18 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
         } else {
             NotificationHelper.showDeadAppCheckIn(context, hoursInactive = _uiState.value.deadAppHours)
         }
+    }
+
+    fun runSystemDiagnostics() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRunningDiagnostics = true) }
+            val report = repository.runSystemDiagnostics()
+            _uiState.update { it.copy(diagnosticsReport = report, isRunningDiagnostics = false) }
+        }
+    }
+
+    fun clearDiagnostics() {
+        _uiState.update { it.copy(diagnosticsReport = null) }
     }
 
     private fun updateLastActive() {

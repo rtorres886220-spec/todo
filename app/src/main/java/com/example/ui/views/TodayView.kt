@@ -1,11 +1,8 @@
 package com.example.ui.views
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,48 +23,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
 import com.example.ui.components.AnchorCard
 import com.example.ui.components.BentoGridCard
-import com.example.ui.components.Kinetic3DAnchorSculpture
-import com.example.ui.components.NotchedTabMergeShape
 import com.example.ui.components.QuietEmptyState
 import com.example.ui.components.getCategoryTint
-import com.example.ui.components.sculpted3DSunkenWell
 import com.example.ui.theme.AccentGold
-import com.example.ui.theme.AccentGoldGlow
 import com.example.ui.theme.GeistMono
 import com.example.ui.theme.HairlineColor
 import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.ShadowAmbient
 import com.example.ui.theme.Surface1
 import com.example.ui.theme.Surface2
-import com.example.ui.theme.SurfaceHighlight
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
 import com.example.ui.theme.UrgencyCoral
 import com.example.ui.util.HapticHelper
-import com.example.ui.util.MotionUtil
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -91,9 +75,6 @@ fun TodayView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val isReducedMotion = remember { MotionUtil.isReducedMotion(context) }
 
     // Selected Day Offset (null = Today, 1 = Tomorrow, 2 = Day 2, etc.)
     var selectedDayOffset by remember { mutableStateOf<Int?>(null) }
@@ -103,27 +84,16 @@ fun TodayView(
     val sdfIso = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
     val todayIso = remember { sdfIso.format(Date()) }
 
-    // Date formatting for Hero card: Left: weekday & date in big light type
-    val headerInfo = remember(selectedDayOffset) {
+    // Date formatting for Header
+    val headerDateStr = remember(selectedDayOffset) {
         val cal = Calendar.getInstance()
         if (selectedDayOffset != null && selectedDayOffset != 0) {
             cal.add(Calendar.DAY_OF_YEAR, selectedDayOffset!!)
-            val d = cal.time
-            val m = SimpleDateFormat("MMMM", Locale.getDefault()).format(d)
-            val num = SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(d)
-            val dayLabel = SimpleDateFormat("EEE", Locale.getDefault()).format(d)
-            DateHeaderInfo(d, m, num, dayLabel)
+            SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(cal.time)
         } else {
-            val d = cal.time
-            val m = SimpleDateFormat("MMMM", Locale.getDefault()).format(d)
-            val num = SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(d)
-            DateHeaderInfo(d, m, num, "Today")
+            SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(cal.time)
         }
     }
-    val activeMonthName = headerInfo.monthName
-    val activeDayNumberStr = headerInfo.dayNumberStr
-    val activeTabLabel = headerInfo.tabLabel
-
 
     // Filter displayed tasks based on selectedFilter (Day, Week, Month) and selectedDayOffset
     val displayedTasks = remember(todayTasks, upcomingTasks, selectedFilter, selectedDayOffset) {
@@ -164,78 +134,53 @@ fun TodayView(
     val heroTask = displayedTasks.firstOrNull { it.dueTime != null } ?: displayedTasks.firstOrNull()
     val bentoTasks = if (heroTask != null) displayedTasks.filter { it.id != heroTask.id } else displayedTasks
 
-    // Hero due time formatting: e.g. "2:22" + "PM" or "11:30" + "AM"
-    val (dueTimeNumeral, amPm) = remember(heroTask?.dueTime) {
-        val dt = heroTask?.dueTime
-        if (dt.isNullOrBlank()) {
-            val cal = Calendar.getInstance()
-            val h = cal.get(Calendar.HOUR)
-            val hour = if (h == 0) 12 else h
-            val min = String.format(Locale.getDefault(), "%02d", cal.get(Calendar.MINUTE))
-            val ampm = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
-            "$hour:$min" to ampm
-        } else {
-            try {
-                val parts = dt.split(":")
-                var hour = parts[0].toInt()
-                val min = parts.getOrNull(1) ?: "00"
-                val ampm = if (hour >= 12) "PM" else "AM"
-                if (hour > 12) hour -= 12
-                if (hour == 0) hour = 12
-                "$hour:$min" to ampm
-            } catch (_: Exception) {
-                dt to ""
-            }
-        }
-    }
-
-    // Hero card tilt angles (up to 4° with touch or motion)
-    val tiltX = remember { Animatable(0f) }
-    val tiltY = remember { Animatable(0f) }
-    val springSpec = spring<Float>(dampingRatio = 0.85f, stiffness = 300f)
-
-    // Total planned minutes and remaining count
     val totalPlannedMinutes = remember(displayedTasks) {
         displayedTasks.sumOf { it.estimatedMinutes ?: 25 }
     }
-
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        // Overdue alerts if any
+        // 1. Overdue alerts if any
         if (overdueTasks.isNotEmpty()) {
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Canvas(modifier = Modifier.size(6.dp)) {
-                            drawCircle(color = UrgencyCoral)
-                        }
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(UrgencyCoral)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "OVERDUE",
                             fontFamily = GeistMono,
-                            fontWeight = FontWeight.Light,
+                            fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
-                            color = UrgencyCoral,
-                            letterSpacing = 0.14.em
+                            color = UrgencyCoral
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "${overdueTasks.size}",
-                            fontFamily = GeistMono,
-                            fontWeight = FontWeight.Light,
-                            fontSize = 11.sp,
-                            color = UrgencyCoral,
-                            letterSpacing = 0.14.em
-                        )
+                        Box(
+                            modifier = Modifier
+                                .background(UrgencyCoral.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${overdueTasks.size}",
+                                fontFamily = GeistMono,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = UrgencyCoral
+                            )
+                        }
                     }
                 }
             }
@@ -253,316 +198,135 @@ fun TodayView(
             }
         }
 
-        // Horizontal strip of circular day chips + NOTCHED TAB MERGE with Hero Card
+        // 2. Clean Header & Day Selector Strip
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
-                // Circular day chips row to the right of the Today tab
+                // Header Date and Stats
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = headerDateStr,
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${displayedTasks.size} tasks • $totalPlannedMinutes min planned",
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+                    }
+
+                    // Brief & Review quick access buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Surface2)
+                                .clickable { onOpenMorningBrief() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .testTag("morning_brief_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "BRIEF",
+                                fontFamily = GeistMono,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                color = AccentGold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Surface2)
+                                .clickable { onOpenEveningReview() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .testTag("evening_review_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "REVIEW",
+                                fontFamily = GeistMono,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Day Selection Strip
                 val dayChips = remember {
                     val cal = Calendar.getInstance()
-                    val list = mutableListOf<Pair<Int, String>>()
+                    val list = mutableListOf<Triple<Int?, String, String>>()
+                    // Today
+                    list.add(Triple(null, "Today", SimpleDateFormat("d", Locale.getDefault()).format(cal.time)))
                     for (i in 1..4) {
                         cal.add(Calendar.DAY_OF_YEAR, 1)
-                        list.add(i to "${cal.get(Calendar.DAY_OF_MONTH)}")
+                        val dayName = SimpleDateFormat("EEE", Locale.getDefault()).format(cal.time)
+                        val dayNum = SimpleDateFormat("d", Locale.getDefault()).format(cal.time)
+                        list.add(Triple(i, dayName, dayNum))
                     }
                     list
                 }
 
-                // The unified Notched Tab & Hero Card container:
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    // Day chips row aligned horizontally at top right of the Today tab
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        dayChips.forEach { (offset, dayNum) ->
-                            val isChipSelected = selectedDayOffset == offset
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 5.dp)
-                                    .size(38.dp)
-                                    .then(
-                                        if (isChipSelected) {
-                                            Modifier.sculpted3DSunkenWell(
-                                                cornerRadius = 19.dp,
-                                                backgroundColor = Surface2
-                                            )
-                                        } else {
-                                            Modifier
-                                                .drawBehind {
-                                                    // 3D convex tactile button shadow
-                                                    drawCircle(
-                                                        color = Color(0x160E182A),
-                                                        radius = size.minDimension / 2f + 1.dp.toPx(),
-                                                        center = Offset(size.width / 2f, size.height / 2f + 2.5.dp.toPx())
-                                                    )
-                                                }
-                                                .clip(CircleShape)
-                                                .background(Surface1)
-                                                .drawBehind {
-                                                    drawLine(
-                                                        color = Color.White,
-                                                        start = Offset(0f, 1.dp.toPx()),
-                                                        end = Offset(size.width, 1.dp.toPx()),
-                                                        strokeWidth = 1.5.dp.toPx()
-                                                    )
-                                                }
-                                        }
-                                    )
-                                    .clickable {
-                                        HapticHelper.vibrate8ms(context)
-                                        selectedFilter = "Day"
-                                        selectedDayOffset = if (selectedDayOffset == offset) null else offset
-                                    }
-                                    .drawBehind {
-                                        if (isChipSelected) {
-                                            drawCircle(
-                                                color = AccentGold,
-                                                radius = size.minDimension / 2f - 1.dp.toPx(),
-                                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-                                            )
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = dayNum,
-                                    fontFamily = PlusJakartaSans,
-                                    fontWeight = if (isChipSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    fontSize = 14.sp,
-                                    color = if (isChipSelected) AccentGold else TextPrimary
-                                )
-                            }
-                        }
-                    }
-
-
-                    // Continuous Notched Tab + Hero Card Surface
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer {
-                                if (!isReducedMotion) {
-                                    rotationX = tiltX.value
-                                    rotationY = tiltY.value
-                                    cameraDistance = 16f * density.density
-                                }
-                            }
-                            .pointerInput(isReducedMotion) {
-                                if (isReducedMotion) return@pointerInput
-                                detectDragGestures(
-                                    onDragStart = { offset ->
-                                        val normX = ((offset.x / size.width) - 0.5f) * 2f
-                                        val normY = ((offset.y / size.height) - 0.5f) * 2f
-                                        scope.launch { tiltY.animateTo(normX * 4f, springSpec) }
-                                        scope.launch { tiltX.animateTo(-normY * 4f, springSpec) }
-                                    },
-                                    onDrag = { change, _ ->
-                                        val normX = ((change.position.x / size.width) - 0.5f).coerceIn(-1f, 1f) * 2f
-                                        val normY = ((change.position.y / size.height) - 0.5f).coerceIn(-1f, 1f) * 2f
-                                        scope.launch { tiltY.animateTo(normX * 4f, springSpec) }
-                                        scope.launch { tiltX.animateTo(-normY * 4f, springSpec) }
-                                    },
-                                    onDragEnd = {
-                                        scope.launch { tiltX.animateTo(0f, springSpec) }
-                                        scope.launch { tiltY.animateTo(0f, springSpec) }
-                                    },
-                                    onDragCancel = {
-                                        scope.launch { tiltX.animateTo(0f, springSpec) }
-                                        scope.launch { tiltY.animateTo(0f, springSpec) }
-                                    }
-                                )
-                            }
-                            // 3D Ambient drop shadow for the notched hero card
-                            .drawBehind {
-                                drawRoundRect(
-                                    color = Color(0x140E182A),
-                                    topLeft = Offset(0f, 8.dp.toPx()),
-                                    size = size,
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx(), 28.dp.toPx())
-                                )
-                                drawRoundRect(
-                                    color = Color(0x18070E1A),
-                                    topLeft = Offset(0f, 2.dp.toPx()),
-                                    size = size,
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx(), 28.dp.toPx())
-                                )
-                                drawCircle(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            AccentGoldGlow,
-                                            Color.Transparent
-                                        ),
-                                        center = Offset(size.width * 0.45f, size.height * 0.5f),
-                                        radius = size.width * 0.75f
-                                    )
-                                )
-                            }
-                            .clip(NotchedTabMergeShape(tabWidth = 100.dp, tabHeight = 44.dp, cardRadius = 28.dp, tabRadius = 22.dp, inverseRadius = 20.dp))
-                            .background(Surface1)
-                            .drawBehind {
-                                // 1.5px crisp specular top bevel
-                                drawLine(
-                                    color = Color.White,
-                                    start = Offset(22.dp.toPx(), 1.dp.toPx()),
-                                    end = Offset(100.dp.toPx() - 22.dp.toPx(), 1.dp.toPx()),
-                                    strokeWidth = 1.5.dp.toPx()
-                                )
-                                drawLine(
-                                    color = Color.White,
-                                    start = Offset(120.dp.toPx(), 44.dp.toPx() + 1.dp.toPx()),
-                                    end = Offset(size.width - 28.dp.toPx(), 44.dp.toPx() + 1.dp.toPx()),
-                                    strokeWidth = 1.5.dp.toPx()
-                                )
-                            }
-                            .clickable {
-                                if (heroTask != null) {
-                                    HapticHelper.vibrate8ms(context)
-                                    onTaskClick(heroTask)
-                                }
-                            }
-                            .testTag("today_hero_card")
-                    ) {
-                        Column(
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    dayChips.forEach { (offset, label, num) ->
+                        val isSelected = selectedDayOffset == offset
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 12.dp)
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) AccentGold else Surface1)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) AccentGold else HairlineColor,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    HapticHelper.vibrate8ms(context)
+                                    selectedFilter = "Day"
+                                    selectedDayOffset = if (selectedDayOffset == offset && offset != null) null else offset
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Tab label "Today" inside the integrated top tab
-                            Box(
-                                modifier = Modifier
-                                    .width(76.dp)
-                                    .height(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = activeTabLabel,
+                                    text = label,
                                     fontFamily = PlusJakartaSans,
-                                    fontWeight = FontWeight.Normal,
-                                    fontSize = 15.sp,
-                                    color = if (selectedDayOffset != null) AccentGold else TextPrimary,
-                                    modifier = Modifier.clickable {
-                                        if (selectedDayOffset != null) {
-                                            HapticHelper.vibrate8ms(context)
-                                            selectedDayOffset = null
-                                        }
-                                    }
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Hero Content: Left weekday & date | Abnormal 3D Chrono-Anchor Sculpture | Right due time
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Left: Month & Date
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = activeMonthName,
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 22.sp,
-                                        lineHeight = 26.sp,
-                                        color = TextPrimary
-                                    )
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Text(
-                                        text = activeDayNumberStr,
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 16.sp,
-                                        color = TextSecondary
-                                    )
-                                }
-
-                                // Centerpiece: Abnormal Interactive 3D Astrolabe Chrono-Anchor Sculpture
-                                Box(
-                                    modifier = Modifier.padding(horizontal = 6.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Kinetic3DAnchorSculpture(
-                                        sizeDp = 86.dp,
-                                        autoRotate = true
-                                    )
-                                }
-
-                                // Thin vertical hairline divider
-                                Box(
-                                    modifier = Modifier
-                                        .height(52.dp)
-                                        .width(1.dp)
-                                        .background(HairlineColor)
-                                )
-
-                                // Right: next task's due time in light numerals with small mono AM/PM
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1.1f)
-                                        .padding(start = 12.dp),
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    Text(
-                                        text = dueTimeNumeral,
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.Light,
-                                        fontSize = 46.sp,
-                                        lineHeight = 48.sp,
-                                        color = TextPrimary,
-                                        letterSpacing = (-0.02).em
-                                    )
-                                    if (amPm.isNotEmpty()) {
-                                        Text(
-                                            text = " $amPm",
-                                            fontFamily = GeistMono,
-                                            fontWeight = FontWeight.Light,
-                                            fontSize = 11.sp,
-                                            color = TextSecondary,
-                                            letterSpacing = 0.14.em,
-                                            modifier = Modifier.padding(bottom = 6.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            // Bottom row: secondary info in muted text
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val remainingCount = displayedTasks.size
-                                val subText = if (heroTask != null) {
-                                    "${heroTask.title.take(30)} • $totalPlannedMinutes min planned"
-                                } else {
-                                    "$remainingCount tasks • $totalPlannedMinutes min planned"
-                                }
-                                Text(
-                                    text = subText,
-                                    fontFamily = PlusJakartaSans,
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 13.sp,
-                                    color = TextSecondary,
-                                    maxLines = 1
-                                )
-
-                                Text(
-                                    text = "DO THIS NEXT",
-                                    fontFamily = GeistMono,
-                                    fontWeight = FontWeight.Light,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                     fontSize = 11.sp,
-                                    color = AccentGold,
-                                    letterSpacing = 0.14.em
+                                    color = if (isSelected) Color.White else TextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = num,
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = if (isSelected) Color.White else TextPrimary
                                 )
                             }
                         }
@@ -571,123 +335,230 @@ fun TodayView(
             }
         }
 
-        // Up next header & Pill Filter Row (Day / Week / Month)
+        // 3. Hero "Current Focus" Card (Clean, modern, no 3D tilts, no scroll hijacking)
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 18.dp, bottom = 12.dp)
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = "Up next",
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 20.sp,
-                    color = TextPrimary
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Pill filter row (Day / Week / Month) with selected pill in Surface 2 plus gold text
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf("Day", "Week", "Month").forEach { filter ->
-                        val isSelected = selectedFilter == filter
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(percent = 50))
-                                .background(if (isSelected) Surface2 else Color.Transparent)
-                                .clickable {
-                                    HapticHelper.vibrate8ms(context)
-                                    selectedFilter = filter
-                                    if (filter != "Day") {
-                                        selectedDayOffset = null
-                                    }
+                if (heroTask != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .drawBehind {
+                                drawRoundRect(
+                                    color = ShadowAmbient,
+                                    topLeft = Offset(0f, 3.dp.toPx()),
+                                    size = size,
+                                    cornerRadius = CornerRadius(20.dp.toPx(), 20.dp.toPx())
+                                )
+                            }
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Surface1)
+                            .border(width = 1.dp, color = HairlineColor, shape = RoundedCornerShape(20.dp))
+                            .clickable {
+                                HapticHelper.vibrate8ms(context)
+                                onTaskClick(heroTask)
+                            }
+                            .padding(20.dp)
+                            .testTag("today_hero_card")
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // Badge & due time
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(AccentGold.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "CURRENT FOCUS",
+                                        fontFamily = GeistMono,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = AccentGold
+                                    )
                                 }
 
-                                .drawBehind {
-                                    if (isSelected) {
-                                        drawLine(
-                                            color = SurfaceHighlight,
-                                            start = Offset(0f, 0.5f),
-                                            end = Offset(size.width, 0.5f),
-                                            strokeWidth = 1.dp.toPx()
+                                val dueBadge = heroTask.dueTime ?: heroTask.dueDate ?: "Scheduled"
+                                Text(
+                                    text = dueBadge,
+                                    fontFamily = GeistMono,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Hero task title
+                            Text(
+                                text = heroTask.title,
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                lineHeight = 24.sp,
+                                color = TextPrimary
+                            )
+
+                            if (heroTask.tagList.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row {
+                                    heroTask.tagList.take(3).forEach { tag ->
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(end = 6.dp)
+                                                .background(Surface2, RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "#$tag",
+                                                fontFamily = GeistMono,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 10.sp,
+                                                color = TextSecondary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Action buttons: Complete button & Snooze
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(AccentGold)
+                                        .clickable {
+                                            HapticHelper.vibrate8ms(context)
+                                            onComplete(heroTask)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "✓ Mark Done",
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Surface2)
+                                            .clickable {
+                                                HapticHelper.vibrate8ms(context)
+                                                onSnooze(heroTask)
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Later",
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 13.sp,
+                                            color = TextSecondary
                                         )
                                     }
                                 }
-                                .padding(horizontal = 18.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = filter,
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = if (isSelected) FontWeight.Normal else FontWeight.Light,
-                                fontSize = 14.sp,
-                                color = if (isSelected) AccentGold else TextSecondary
-                            )
+                            }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Brief & Review quick access triggers in calm text
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "BRIEF",
-                            fontFamily = GeistMono,
-                            fontSize = 11.sp,
-                            color = AccentGold,
-                            letterSpacing = 0.14.em,
-                            modifier = Modifier
-                                .clickable { onOpenMorningBrief() }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
-                                .testTag("morning_brief_button")
-                        )
-                        Text(
-                            text = "•",
-                            fontSize = 11.sp,
-                            color = TextTertiary,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                        Text(
-                            text = "REVIEW",
-                            fontFamily = GeistMono,
-                            fontSize = 11.sp,
-                            color = TextSecondary,
-                            letterSpacing = 0.14.em,
-                            modifier = Modifier
-                                .clickable { onOpenEveningReview() }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
-                                .testTag("evening_review_button")
-                        )
                     }
                 }
             }
         }
 
-        // Two-column bento grid of tinted category cards of varying heights
+        // 4. Up Next Section with Scope Filter (Day / Week / Month)
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp, bottom = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Up next",
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextPrimary
+                    )
+
+                    // Filter tabs (Day / Week / Month)
+                    Row(
+                        modifier = Modifier
+                            .background(Surface2, RoundedCornerShape(8.dp))
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        listOf("Day", "Week", "Month").forEach { filter ->
+                            val isSelected = selectedFilter == filter
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) Surface1 else Color.Transparent)
+                                    .clickable {
+                                        HapticHelper.vibrate8ms(context)
+                                        selectedFilter = filter
+                                        if (filter != "Day") {
+                                            selectedDayOffset = null
+                                        }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = filter,
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontSize = 12.sp,
+                                    color = if (isSelected) AccentGold else TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Tasks Grid or Empty State
         if (bentoTasks.isEmpty()) {
             item {
-                QuietEmptyState(message = "Nothing planned for today")
+                QuietEmptyState(message = "All clear! No remaining tasks.")
             }
         } else {
-            // Group into 2-item rows for the two-column bento grid
             val pairs = bentoTasks.chunked(2)
             pairs.forEachIndexed { rowIndex, pair ->
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 20.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         val leftItem = pair[0]
                         val leftTint = getCategoryTint(leftItem)
-                        val leftHeight = if (rowIndex % 2 == 0) 170.dp else 140.dp
+                        val leftHeight = if (rowIndex % 2 == 0) 155.dp else 135.dp
 
                         Box(modifier = Modifier.weight(1f)) {
                             BentoGridCard(
@@ -703,7 +574,7 @@ fun TodayView(
                         if (pair.size > 1) {
                             val rightItem = pair[1]
                             val rightTint = getCategoryTint(rightItem)
-                            val rightHeight = if (rowIndex % 2 == 0) 140.dp else 170.dp
+                            val rightHeight = if (rowIndex % 2 == 0) 135.dp else 155.dp
 
                             Box(modifier = Modifier.weight(1f)) {
                                 BentoGridCard(
@@ -724,15 +595,7 @@ fun TodayView(
         }
 
         item {
-            Spacer(modifier = Modifier.height(180.dp))
+            Spacer(modifier = Modifier.height(140.dp))
         }
     }
 }
-
-private data class DateHeaderInfo(
-    val date: Date,
-    val monthName: String,
-    val dayNumberStr: String,
-    val tabLabel: String
-)
-

@@ -43,6 +43,12 @@ import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
 import com.example.ui.util.HapticHelper
 
+import com.example.data.DiagnosticsReport
+import com.example.ui.theme.Surface2
+import com.example.ui.theme.TintSageFg
+import com.example.ui.theme.TintApricotFg
+import androidx.compose.material3.LinearProgressIndicator
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsSheet(
@@ -51,6 +57,9 @@ fun SettingsSheet(
     quietHours: String,
     escalationIntensity: String,
     deadAppHours: Int,
+    diagnosticsReport: DiagnosticsReport? = null,
+    isRunningDiagnostics: Boolean = false,
+    onRunDiagnostics: () -> Unit = {},
     onSave: (morning: String, evening: String, quiet: String, intensity: String, deadAppH: Int) -> Unit,
     onTestNotification: () -> Unit,
     onLoadSampleData: () -> Unit,
@@ -225,7 +234,126 @@ fun SettingsSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(22.dp))
+
+            // Subsystem Health & Diagnostics Card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .drawBehind {
+                        drawRoundRect(
+                            color = Surface2,
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
+                        )
+                    }
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "SUBSYSTEM HEALTH",
+                        fontFamily = GeistMono,
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        letterSpacing = 0.14.em
+                    )
+
+                    Text(
+                        text = if (isRunningDiagnostics) "PROBING..." else "RUN PROBE",
+                        fontFamily = GeistMono,
+                        fontSize = 11.sp,
+                        color = AccentGold,
+                        letterSpacing = 0.14.em,
+                        modifier = Modifier
+                            .clickable(enabled = !isRunningDiagnostics) {
+                                HapticHelper.vibrate8ms(context)
+                                onRunDiagnostics()
+                            }
+                            .testTag("run_diagnostics_button")
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                if (isRunningDiagnostics) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().height(2.dp),
+                        color = AccentGold,
+                        trackColor = HairlineColor
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Verifying Room SQLite, AI engine, Alarms & Prefs...",
+                        fontFamily = GeistMono,
+                        fontSize = 10.sp,
+                        color = TextTertiary
+                    )
+                } else if (diagnosticsReport != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (diagnosticsReport.allPassing) "● ALL SYSTEMS OPERATIONAL" else "▲ CHECK WARNING",
+                            fontFamily = GeistMono,
+                            fontSize = 11.sp,
+                            color = if (diagnosticsReport.allPassing) TintSageFg else TintApricotFg,
+                            letterSpacing = 0.1.em
+                        )
+                        Text(
+                            text = "${diagnosticsReport.totalLatencyMs}ms",
+                            fontFamily = GeistMono,
+                            fontSize = 10.sp,
+                            color = TextTertiary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    diagnosticsReport.probes.forEach { probe ->
+                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = probe.name,
+                                    fontFamily = GeistMono,
+                                    fontSize = 10.sp,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = probe.statusBadge,
+                                    fontFamily = GeistMono,
+                                    fontSize = 10.sp,
+                                    color = if (probe.isHealthy) TintSageFg else TintApricotFg
+                                )
+                            }
+                            Text(
+                                text = "${probe.details} (${probe.latencyMs}ms)",
+                                fontFamily = GeistMono,
+                                fontSize = 9.sp,
+                                color = TextTertiary
+                            )
+                        }
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Tap 'RUN PROBE' to verify live database, AI pipeline, alarms, and settings.",
+                        fontFamily = GeistMono,
+                        fontSize = 10.sp,
+                        color = TextTertiary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Load Sample Data action
             Box(

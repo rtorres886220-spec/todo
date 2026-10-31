@@ -9,115 +9,126 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-// Typography: Rounded geometric sans (Plus Jakarta Sans)
-val PlusJakartaSans = FontFamily(
-    Font(R.font.plus_jakarta_sans, FontWeight.Light),
-    Font(R.font.plus_jakarta_sans, FontWeight.Normal),
-    Font(R.font.plus_jakarta_sans, FontWeight.Medium)
+/**
+ * Apple Human Interface Design Typography System:
+ * - Primary UI System Sans: San Francisco (SF Pro), represented via Inter (open-source SF Pro standard)
+ * - Monospace Telemetry / Code: SF Mono, represented via JetBrains Mono (clean slashed zero, tabular figures)
+ */
+val SFPro = FontFamily(
+    Font(R.font.inter, FontWeight.Light),
+    Font(R.font.inter, FontWeight.Normal),
+    Font(R.font.inter, FontWeight.Medium),
+    Font(R.font.inter, FontWeight.SemiBold),
+    Font(R.font.inter, FontWeight.Bold)
 )
 
-// Metadata: Geist Mono
-val GeistMono = FontFamily(
-    Font(R.font.geist_mono, FontWeight.Light),
-    Font(R.font.geist_mono, FontWeight.Normal)
+val SFMono = FontFamily(
+    Font(R.font.jetbrains_mono, FontWeight.Light),
+    Font(R.font.jetbrains_mono, FontWeight.Normal),
+    Font(R.font.jetbrains_mono, FontWeight.Medium),
+    Font(R.font.jetbrains_mono, FontWeight.Bold)
 )
 
+// Aliases for seamless backward compatibility across all existing UI components
+val AppleSystemSans = SFPro
+val PlusJakartaSans = SFPro
+val AppleSystemMono = SFMono
+val GeistMono = SFMono
 
+// Apple HIG Display & Numerals
 val DisplayNumeralLarge = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Light,
-    fontSize = 56.sp,
-    lineHeight = 60.sp,
-    letterSpacing = (-0.02).em
+    fontFamily = SFPro,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 54.sp,
+    lineHeight = 58.sp,
+    letterSpacing = (-0.025).em
 )
 
 val DisplayNumeralMedium = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Light,
-    fontSize = 44.sp,
-    lineHeight = 48.sp,
-    letterSpacing = (-0.02).em
-)
-
-// Screen title: weight 300 at 42px
-val ScreenTitleLarge = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Light,
+    fontFamily = SFPro,
+    fontWeight = FontWeight.SemiBold,
     fontSize = 42.sp,
     lineHeight = 46.sp,
     letterSpacing = (-0.02).em
 )
 
-// Titles: weight 400 at 17-20px
+// Apple HIG Large Title (34-40sp, tracking -0.02em)
+val ScreenTitleLarge = TextStyle(
+    fontFamily = SFPro,
+    fontWeight = FontWeight.Bold,
+    fontSize = 38.sp,
+    lineHeight = 44.sp,
+    letterSpacing = (-0.02).em
+)
+
+// Apple HIG Title 1 & Title 2 (20-24sp)
 val TitleLarge = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Normal,
-    fontSize = 20.sp,
-    lineHeight = 26.sp,
-    letterSpacing = (-0.01).em
+    fontFamily = SFPro,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 22.sp,
+    lineHeight = 28.sp,
+    letterSpacing = (-0.015).em
 )
 
 val TitleMedium = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Normal,
+    fontFamily = SFPro,
+    fontWeight = FontWeight.SemiBold,
     fontSize = 18.sp,
     lineHeight = 24.sp,
     letterSpacing = (-0.01).em
 )
 
 val TitleSmall = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Normal,
-    fontSize = 17.sp,
+    fontFamily = SFPro,
+    fontWeight = FontWeight.Medium,
+    fontSize = 16.sp,
     lineHeight = 22.sp,
-    letterSpacing = (-0.01).em
+    letterSpacing = (-0.005).em
 )
 
-// Body: weight 300 at 15px minimum
+// Apple HIG Body (16-17sp, clean legibility)
+val BodyLarge = TextStyle(
+    fontFamily = SFPro,
+    fontWeight = FontWeight.Normal,
+    fontSize = 17.sp,
+    lineHeight = 24.sp,
+    letterSpacing = (-0.005).em
+)
+
 val BodyRegular = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Light,
+    fontFamily = SFPro,
+    fontWeight = FontWeight.Normal,
     fontSize = 15.sp,
     lineHeight = 22.sp,
     letterSpacing = 0.sp
 )
 
-val BodyLarge = TextStyle(
-    fontFamily = PlusJakartaSans,
-    fontWeight = FontWeight.Light,
-    fontSize = 16.sp,
-    lineHeight = 24.sp,
-    letterSpacing = 0.sp
-)
-
-// Metadata: Geist Mono 300 at 11px uppercase, 0.14em tracking
+// Apple HIG Footnote & Caption in SF Mono (tabular, uppercase tracking 0.08em)
 val MetadataMono = TextStyle(
-    fontFamily = GeistMono,
-    fontWeight = FontWeight.Light,
+    fontFamily = SFMono,
+    fontWeight = FontWeight.Medium,
     fontSize = 11.sp,
     lineHeight = 15.sp,
-    letterSpacing = 0.14.em
+    letterSpacing = 0.08.em
 )
 
 val MetadataMonoMedium = TextStyle(
-    fontFamily = GeistMono,
-    fontWeight = FontWeight.Light,
+    fontFamily = SFMono,
+    fontWeight = FontWeight.Medium,
     fontSize = 12.sp,
     lineHeight = 16.sp,
-    letterSpacing = 0.14.em
+    letterSpacing = 0.08.em
 )
-
-
 
 val Typography = Typography(
     displayLarge = DisplayNumeralLarge,
     displayMedium = DisplayNumeralMedium,
     headlineMedium = ScreenTitleLarge,
     headlineSmall = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.Light,
+        fontFamily = SFPro,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
-        letterSpacing = (-0.02).em
+        letterSpacing = (-0.015).em
     ),
     titleLarge = TitleLarge,
     titleMedium = TitleMedium,

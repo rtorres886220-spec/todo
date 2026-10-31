@@ -14,7 +14,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,8 +74,7 @@ import com.example.ui.components.TaskDetailSheet
 import com.example.ui.components.subtleFilmGrainOverlay
 import com.example.ui.theme.GeistMono
 import com.example.ui.theme.PlusJakartaSans
-import com.example.ui.theme.SoftDarkBackground
-import com.example.ui.theme.SoftDarkRadialLift
+import com.example.ui.theme.SoftLightBackground
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.util.HapticHelper
@@ -184,34 +185,18 @@ fun MainScreen(viewModel: AnchorViewModel) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = SoftDarkBackground,
-        modifier = Modifier.nestedScroll(nestedScrollConnection)
+        containerColor = SoftLightBackground
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // Background: #08080A with a very faint radial lift (#101014) behind hero.
-                // Add a subtle film-grain noise overlay at 3% opacity to avoid banding and add richness.
-                .drawBehind {
-                    drawRect(color = SoftDarkBackground)
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                SoftDarkRadialLift,
-                                Color.Transparent
-                            ),
-                            center = Offset(size.width * 0.5f, size.height * 0.32f),
-                            radius = size.width * 0.9f
-                        )
-                    )
-                }
-                .subtleFilmGrainOverlay()
+                .background(SoftLightBackground)
         ) {
             // Main content with tab cross-fade and slight horizontal parallax
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 110.dp) // Space for floating header
+                    .padding(top = 96.dp) // Space for clean header
             ) {
                 AnimatedContent(
                     targetState = uiState.activeTab,
@@ -294,28 +279,28 @@ fun MainScreen(viewModel: AnchorViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
+                    .height(110.dp)
                     .align(Alignment.TopCenter)
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                SoftDarkBackground,
-                                SoftDarkBackground.copy(alpha = 0.85f),
+                                SoftLightBackground,
+                                SoftLightBackground.copy(alpha = 0.9f),
                                 Color.Transparent
                             )
                         )
                     )
             )
 
-            // Header: Display numeral/date with 3D tactile telemetry badge
+            // Header: Clean, high-contrast screen title and action pills
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopStart)
                     .statusBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
                     modifier = Modifier
@@ -328,94 +313,100 @@ fun MainScreen(viewModel: AnchorViewModel) {
                     Text(
                         text = headerTitle,
                         fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Light,
-                        fontSize = 40.sp,
-                        lineHeight = 44.sp,
-                        color = TextPrimary,
-                        letterSpacing = (-0.02).em
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp,
+                        lineHeight = 32.sp,
+                        color = TextPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = dateMonoStr,
                         fontFamily = GeistMono,
-                        fontWeight = FontWeight.Normal,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 11.sp,
-                        color = TextSecondary,
-                        letterSpacing = 0.14.em
+                        color = TextSecondary
                     )
                 }
 
-                // 3D Tactile Telemetry Capsule (triggers Intelligence dialog)
-                Box(
-                    modifier = Modifier
-                        .padding(top = 6.dp)
-                        .drawBehind {
-                            drawRoundRect(
-                                color = Color(0x120E182A),
-                                topLeft = Offset(0f, 3.dp.toPx()),
-                                size = size,
-                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx())
-                            )
-                        }
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                        .background(Surface1)
-                        .drawBehind {
-                            drawLine(
-                                color = Color.White,
-                                start = Offset(10.dp.toPx(), 1.dp.toPx()),
-                                end = Offset(size.width - 10.dp.toPx(), 1.dp.toPx()),
-                                strokeWidth = 1.dp.toPx()
-                            )
-                        }
-                        .clickable {
-                            HapticHelper.vibrate8ms(context)
-                            viewModel.askIntelligence("What should I focus on next?")
-                        }
-                        .padding(horizontal = 12.dp, vertical = 7.dp)
-                        .testTag("intelligence_button"),
-                    contentAlignment = Alignment.Center
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.foundation.Canvas(modifier = Modifier.size(6.dp)) {
-                            drawCircle(color = com.example.ui.theme.AccentGold)
+                    // AI Insights Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .background(Surface1)
+                            .border(1.dp, com.example.ui.theme.HairlineColor, androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .clickable {
+                                HapticHelper.vibrate8ms(context)
+                                viewModel.askIntelligence("What should I focus on next?")
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                            .testTag("intelligence_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.foundation.Canvas(modifier = Modifier.size(6.dp)) {
+                                drawCircle(color = com.example.ui.theme.AccentGold)
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "AI FOCUS",
+                                fontFamily = GeistMono,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = com.example.ui.theme.AccentGold
+                            )
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "3D CHRONO",
-                            fontFamily = GeistMono,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 10.sp,
-                            color = com.example.ui.theme.AccentGold,
-                            letterSpacing = 0.12.em
-                        )
+                    }
+
+                    // Settings Icon Button
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(Surface1)
+                            .border(1.dp, com.example.ui.theme.HairlineColor, androidx.compose.foundation.shape.CircleShape)
+                            .clickable {
+                                HapticHelper.vibrate8ms(context)
+                                viewModel.openSettings()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.Canvas(modifier = Modifier.size(16.dp)) {
+                            val stroke = 1.5.dp.toPx()
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            drawCircle(color = TextSecondary, radius = size.minDimension / 2f - 2f, style = Stroke(width = stroke))
+                            drawCircle(color = TextSecondary, radius = 2.5.dp.toPx())
+                        }
                     }
                 }
             }
 
-            // Bottom progressive gradient fade so scrolling content fades smoothly above floating bars
+            // Bottom progressive gradient fade so scrolling content fades smoothly above bottom bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(140.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                SoftDarkBackground.copy(alpha = 0.75f),
-                                SoftDarkBackground
+                                SoftLightBackground.copy(alpha = 0.85f),
+                                SoftLightBackground
                             )
                         )
                     )
             )
 
-            // Floating Bottom Stack: Capture Bar + Lifted Floating Navigation Bar
+            // Bottom Stack: Capture Bar + Pinned Navigation Bar
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
             ) {
-                // Floating glass capture bar
                 CaptureBar(
                     onCapture = { text -> viewModel.capture(text) },
                     clipboardText = uiState.clipboardCandidate,
@@ -423,14 +414,13 @@ fun MainScreen(viewModel: AnchorViewModel) {
                     onDismissClipboard = { viewModel.dismissClipboard() }
                 )
 
-                // Lifted glass navigation bar floating 12px above bottom
                 QuietNavigationBar(
                     activeTab = uiState.activeTab,
                     onTabSelected = { viewModel.setTab(it) },
                     inboxCount = inboxTasks.size,
                     todayCount = todayTasks.size,
                     hasOverdue = overdueTasks.isNotEmpty(),
-                    isVisible = isNavVisible
+                    isVisible = true
                 )
             }
         }
@@ -551,6 +541,9 @@ fun MainScreen(viewModel: AnchorViewModel) {
                 quietHours = uiState.quietHours,
                 escalationIntensity = uiState.escalationIntensity,
                 deadAppHours = uiState.deadAppHours,
+                diagnosticsReport = uiState.diagnosticsReport,
+                isRunningDiagnostics = uiState.isRunningDiagnostics,
+                onRunDiagnostics = { viewModel.runSystemDiagnostics() },
                 onSave = { morning, evening, quiet, intensity, deadAppH ->
                     viewModel.updateSettings(morning, evening, quiet, intensity, deadAppH)
                 },

@@ -336,4 +336,83 @@ class AnchorSystemReliabilityTest {
         // Should adjust the conflicting flexible task ID 101
         assertTrue("Conflicting flexible task should be adjusted", adjustments.any { it.taskId == 101L })
     }
+
+    // 12. Full Subsystem Diagnostics & Communication Health Probe
+    @Test
+    fun `runSystemDiagnostics executes all 5 subsystem probes and reports healthy status`() = runBlocking {
+        val report = repository.runSystemDiagnostics()
+
+        assertNotNull(report)
+        assertEquals(5, report.probes.size)
+
+        // Verify Database Probe
+        val dbProbe = report.probes.find { it.id == "db" }
+        assertNotNull(dbProbe)
+        assertTrue(dbProbe!!.isHealthy)
+        assertTrue(dbProbe.statusBadge.contains("Verified"))
+
+        // Verify AI / NLP Probe
+        val aiProbe = report.probes.find { it.id == "ai" }
+        assertNotNull(aiProbe)
+        assertTrue(aiProbe!!.isHealthy)
+
+        // Verify Notifications / Alarms Probe
+        val notifProbe = report.probes.find { it.id == "notif" }
+        assertNotNull(notifProbe)
+        assertTrue(notifProbe!!.isHealthy)
+        assertEquals("Operational", notifProbe.statusBadge)
+
+        // Verify SharedPreferences Storage Probe
+        val prefProbe = report.probes.find { it.id == "prefs" }
+        assertNotNull(prefProbe)
+        assertTrue(prefProbe!!.isHealthy)
+        assertEquals("Synced", prefProbe.statusBadge)
+
+        // Verify Habit Self-Calibration Probe
+        val habitProbe = report.probes.find { it.id == "habit" }
+        assertNotNull(habitProbe)
+        assertTrue(habitProbe!!.isHealthy)
+
+        assertTrue("All probes must pass in healthy environment", report.allPassing)
+    }
+
+    // 13. End-to-End Task Capture, NLP Enrichment, and Exact Alarm Trigger
+    @Test
+    fun `end-to-end task capture enriches via NLP and calculates exact alarm`() = runBlocking {
+        val raw = "Ship final release notes tomorrow at 10am #deploy urgent 30 mins"
+        val id = repository.captureInstant(raw)
+        assertTrue(id > 0)
+
+        // Simulate AI / NLP heuristic normalization
+        val parsed = geminiService.parseWithLocalHeuristics(raw)
+        assertTrue(parsed.isNotEmpty())
+        val norm = AiValidator.normalize(parsed[0], raw)
+
+        database.anchorDao().updateAiEnrichmentWithLock(
+            id = id,
+            type = norm.type,
+            title = norm.title,
+            dueDate = norm.dueDate,
+            dueTime = norm.dueTime,
+            priority = norm.priority,
+            tags = norm.tags.joinToString(","),
+            estimatedMinutes = norm.estimatedMinutes,
+            isLockedSchedule = norm.isLockedSchedule
+        )
+
+        val item = database.anchorDao().getItemById(id)
+        assertNotNull(item)
+        assertEquals("Ship final release notes", item?.title)
+        assertEquals("10:00", item?.dueTime)
+        assertEquals(AnchorItem.PRIORITY_HIGH, item?.priority)
+        assertTrue(item?.tags?.contains("deploy") == true)
+
+        val triggerMillis = AnchorAlarmScheduler.calculateTaskTriggerMillis(item!!)
+        assertNotNull("Alarm trigger millis must be calculated", triggerMillis)
+
+        val cal = Calendar.getInstance().apply { timeInMillis = triggerMillis!! }
+        assertEquals(10, cal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, cal.get(Calendar.MINUTE))
+    }
 }
+
