@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.example.ai.StrategicOrchestrator
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -19,9 +20,21 @@ class AnchorRepository(
     private val dao: AnchorDao,
     private val geminiService: GeminiService,
     private val appContext: Context,
-    private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
+    private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val habitDao: HabitDao? = null
 ) {
     private val TAG = "AnchorRepository"
+
+    val habitProfiler = HabitProfiler(habitDao ?: object : HabitDao {
+        override suspend fun insert(metric: HabitMetric): Long = 0L
+        override suspend fun getRecentMetrics(limit: Int): List<HabitMetric> = emptyList()
+        override suspend fun getRecentCompletedDurations(): List<HabitMetric> = emptyList()
+        override suspend fun getPeakHoursRaw(): List<HourCount> = emptyList()
+        override suspend fun countSnoozesSince(sinceTimestamp: Long): Int = 0
+        override suspend fun countCompletionsSince(sinceTimestamp: Long): Int = 0
+    })
+
+    val strategicOrchestrator = StrategicOrchestrator(dao, habitProfiler, geminiService, appContext, externalScope)
 
     val allInbox: Flow<List<AnchorItem>> = dao.getInboxItems()
     val allToday: Flow<List<AnchorItem>> = dao.getTodayItems()
@@ -52,16 +65,23 @@ class AnchorRepository(
         if (trimmed.isEmpty() && sharedUri == null) return -1L
 
         val initialTitle = if (trimmed.isNotEmpty()) trimmed else "Shared Attachment"
+        val profile = habitProfiler.getProfile()
+        val initialEst = profile.calibrateDuration(null)
+        val initialLocked = AiValidator.isNonNegotiableSchedule(initialTitle, trimmed, null)
+
         val placeholder = AnchorItem(
             title = initialTitle,
             rawInput = trimmed,
             type = if (trimmed.startsWith("note:", ignoreCase = true)) AnchorItem.TYPE_NOTE else AnchorItem.TYPE_TASK,
             status = AnchorItem.STATUS_INBOX,
+            estimatedMinutes = initialEst,
+            isLockedSchedule = initialLocked,
             aiSorted = false,
             sharedUri = sharedUri
         )
 
         val initialId = dao.insert(placeholder)
+        strategicOrchestrator.onTaskMutated()
 
         // Asynchronous AI enrichment in background
         externalScope.launch {
@@ -72,9 +92,10 @@ class AnchorRepository(
                     val currentItem = dao.getItemById(initialId)
                     if (currentItem != null && currentItem.status != AnchorItem.STATUS_DONE) {
                         val firstParsed = AiValidator.normalize(parsedList[0], trimmed)
+                        val calibratedDuration = profile.calibrateDuration(firstParsed.estimatedMinutes)
 
-                        // Atomic update to avoid overwriting newer user changes
-                        dao.updateAiEnrichment(
+                        // Atomic update with locked schedule detection
+                        dao.updateAiEnrichmentWithLock(
                             id = initialId,
                             type = firstParsed.type,
                             title = firstParsed.title,
@@ -82,7 +103,8 @@ class AnchorRepository(
                             dueTime = firstParsed.dueTime,
                             priority = firstParsed.priority,
                             tags = firstParsed.tags.joinToString(","),
-                            estimatedMinutes = firstParsed.estimatedMinutes
+                            estimatedMinutes = calibratedDuration,
+                            isLockedSchedule = firstParsed.isLockedSchedule
                         )
 
                         val updatedItem = dao.getItemById(initialId)
@@ -97,6 +119,7 @@ class AnchorRepository(
                         if (parsedList.size > 1) {
                             for (i in 1 until parsedList.size) {
                                 val extra = AiValidator.normalize(parsedList[i], trimmed)
+                                val extraDuration = profile.calibrateDuration(extra.estimatedMinutes)
                                 val extraItem = AnchorItem(
                                     title = extra.title,
                                     rawInput = trimmed,
@@ -105,8 +128,9 @@ class AnchorRepository(
                                     dueTime = extra.dueTime,
                                     priority = extra.priority,
                                     tags = extra.tags.joinToString(","),
-                                    estimatedMinutes = extra.estimatedMinutes,
+                                    estimatedMinutes = extraDuration,
                                     status = AnchorItem.STATUS_INBOX,
+                                    isLockedSchedule = extra.isLockedSchedule,
                                     aiSorted = true
                                 )
                                 val extraId = dao.insert(extraItem)
@@ -118,6 +142,7 @@ class AnchorRepository(
                                 }
                             }
                         }
+                        strategicOrchestrator.onTaskMutated()
                     }
                 }
             } catch (e: Exception) {
@@ -139,6 +164,7 @@ class AnchorRepository(
         if (updated.dueDate != null) {
             AnchorAlarmScheduler.scheduleTaskReminder(appContext, updated)
         }
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun moveToInbox(item: AnchorItem) {
@@ -148,16 +174,37 @@ class AnchorRepository(
                 isPinnedToToday = false
             )
         )
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun markCompleted(item: AnchorItem) {
         AnchorAlarmScheduler.cancelTaskReminder(appContext, item.id)
+        val now = System.currentTimeMillis()
+        val elapsedMinutes = if (item.createdAt > 0) ((now - item.createdAt) / 60000L).toInt().coerceIn(1, 1440) else null
+        val cal = Calendar.getInstance()
+
+        try {
+            habitDao?.insert(
+                HabitMetric(
+                    itemId = item.id,
+                    actionType = "complete",
+                    timestamp = now,
+                    hourOfDay = cal.get(Calendar.HOUR_OF_DAY),
+                    dayOfWeek = cal.get(Calendar.DAY_OF_WEEK),
+                    estimatedMinutes = item.estimatedMinutes ?: 30,
+                    actualMinutes = elapsedMinutes,
+                    snoozeCountAtAction = item.snoozeCount
+                )
+            )
+        } catch (_: Exception) {}
+
         dao.update(
             item.copy(
                 status = AnchorItem.STATUS_DONE,
-                completedAt = System.currentTimeMillis()
+                completedAt = now
             )
         )
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun uncomplete(item: AnchorItem) {
@@ -169,6 +216,7 @@ class AnchorRepository(
         if (updated.dueDate != null) {
             AnchorAlarmScheduler.scheduleTaskReminder(appContext, updated)
         }
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun snooze(item: AnchorItem, hours: Int = 0, minutes: Int = 0) {
@@ -182,6 +230,21 @@ class AnchorRepository(
 
         val newSnoozeCount = item.snoozeCount + 1
 
+        try {
+            habitDao?.insert(
+                HabitMetric(
+                    itemId = item.id,
+                    actionType = "snooze",
+                    timestamp = System.currentTimeMillis(),
+                    hourOfDay = cal.get(Calendar.HOUR_OF_DAY),
+                    dayOfWeek = cal.get(Calendar.DAY_OF_WEEK),
+                    estimatedMinutes = item.estimatedMinutes ?: 30,
+                    actualMinutes = null,
+                    snoozeCountAtAction = newSnoozeCount
+                )
+            )
+        } catch (_: Exception) {}
+
         val snoozed = item.copy(
             snoozeCount = newSnoozeCount,
             snoozeUntil = cal.timeInMillis,
@@ -193,12 +256,14 @@ class AnchorRepository(
 
         dao.update(snoozed)
         AnchorAlarmScheduler.scheduleTaskReminder(appContext, snoozed)
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun delete(item: AnchorItem) {
         AnchorAlarmScheduler.cancelTaskReminder(appContext, item.id)
         dao.deleteSubtasksByParentId(item.id)
         dao.delete(item)
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun updateItem(item: AnchorItem) {
@@ -208,6 +273,7 @@ class AnchorRepository(
         } else {
             AnchorAlarmScheduler.cancelTaskReminder(appContext, item.id)
         }
+        strategicOrchestrator.onTaskMutated()
     }
 
     suspend fun getItem(id: Long): AnchorItem? {

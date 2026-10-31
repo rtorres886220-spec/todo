@@ -65,7 +65,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     private val app: Application = application
     private val db = AnchorDatabase.getDatabase(application)
     private val geminiService = GeminiService()
-    private val repository = AnchorRepository(db.anchorDao(), geminiService, application, viewModelScope)
+    private val repository = AnchorRepository(db.anchorDao(), geminiService, application, viewModelScope, db.habitDao())
 
     private val _uiState = MutableStateFlow(AnchorUiState())
     val uiState: StateFlow<AnchorUiState> = _uiState.asStateFlow()

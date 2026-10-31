@@ -88,18 +88,42 @@ object AiValidator {
             .take(8)
     }
 
+    private val LOCKED_KEYWORDS = listOf(
+        "flight", "boarding", "airport", "plane",
+        "doctor", "dentist", "surgeon", "clinic", "appointment",
+        "interview", "webinar", "hearing", "court",
+        "meeting with", "call with", "sync with", "dinner with", "lunch with",
+        "reservation", "class at", "lecture at", "exam", "test at"
+    )
+
+    fun isNonNegotiableSchedule(title: String, rawInput: String, dueTime: String?): Boolean {
+        val text = "$title $rawInput".lowercase(Locale.getDefault())
+        val hasLockedKeyword = LOCKED_KEYWORDS.any { text.contains(it) }
+        if (hasLockedKeyword && dueTime != null) {
+            return true
+        }
+        if (text.contains("flight") || text.contains("interview") || text.contains("appointment")) {
+            return true
+        }
+        return false
+    }
+
     /**
      * Normalizes a parsed capture into a validated, safe structure.
      */
     fun normalize(capture: ParsedCapture, rawFallback: String): ParsedCapture {
+        val normTitle = validateAndNormalizeTitle(capture.title, rawFallback)
+        val normDueTime = validateTime(capture.dueTime)
+        val locked = capture.isLockedSchedule || isNonNegotiableSchedule(normTitle, rawFallback, normDueTime)
         return ParsedCapture(
             type = validateAndNormalizeType(capture.type),
-            title = validateAndNormalizeTitle(capture.title, rawFallback),
+            title = normTitle,
             dueDate = validateDate(capture.dueDate),
-            dueTime = validateTime(capture.dueTime),
+            dueTime = normDueTime,
             priority = validatePriority(capture.priority),
             tags = validateTags(capture.tags),
-            estimatedMinutes = validateEstimatedMinutes(capture.estimatedMinutes)
+            estimatedMinutes = validateEstimatedMinutes(capture.estimatedMinutes),
+            isLockedSchedule = locked
         )
     }
 }

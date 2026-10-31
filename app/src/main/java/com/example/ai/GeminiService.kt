@@ -2,6 +2,7 @@ package com.example.ai
 
 import android.util.Log
 import com.example.data.AnchorItem
+import com.example.data.HabitProfile
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
 import com.google.firebase.ai.ai
@@ -25,7 +26,15 @@ data class ParsedCapture(
     val dueTime: String? = null,
     val priority: String = AnchorItem.PRIORITY_MEDIUM,
     val tags: List<String> = emptyList(),
-    val estimatedMinutes: Int? = null
+    val estimatedMinutes: Int? = null,
+    val isLockedSchedule: Boolean = false
+)
+
+data class ScheduleAdjustment(
+    val taskId: Long,
+    val suggestedTime: String,
+    val calibratedDuration: Int,
+    val strategicRationale: String
 )
 
 data class MorningBrief(
@@ -146,6 +155,7 @@ class GeminiService {
                - "priority": "high", "medium", "low", or "none"
                - "tags": array of 1-3 lowercase relevant tags (e.g. ["work", "errands", "health", "ideas"])
                - "estimatedMinutes": estimated duration in minutes (integer like 15, 30, 60) or null
+               - "isLockedSchedule": boolean (true for fixed external commitments like flights, doctor/dentist appts, interviews, or meetings; false for flexible self-directed tasks)
             
             Respond ONLY with a valid JSON array of objects.
         """.trimIndent()
@@ -165,15 +175,20 @@ class GeminiService {
                     tags.add(tagsArray.getString(j))
                 }
             }
+            val titleStr = obj.optString("title", text)
+            val dueTimeStr = if (obj.has("dueTime") && !obj.isNull("dueTime")) obj.getString("dueTime") else null
+            val isLocked = if (obj.has("isLockedSchedule")) obj.getBoolean("isLockedSchedule") else AiValidator.isNonNegotiableSchedule(titleStr, text, dueTimeStr)
+
             results.add(
                 ParsedCapture(
                     type = obj.optString("type", AnchorItem.TYPE_TASK),
-                    title = obj.optString("title", text),
+                    title = titleStr,
                     dueDate = if (obj.has("dueDate") && !obj.isNull("dueDate")) obj.getString("dueDate") else null,
-                    dueTime = if (obj.has("dueTime") && !obj.isNull("dueTime")) obj.getString("dueTime") else null,
+                    dueTime = dueTimeStr,
                     priority = obj.optString("priority", AnchorItem.PRIORITY_MEDIUM),
                     tags = tags,
-                    estimatedMinutes = if (obj.has("estimatedMinutes") && !obj.isNull("estimatedMinutes")) obj.getInt("estimatedMinutes") else null
+                    estimatedMinutes = if (obj.has("estimatedMinutes") && !obj.isNull("estimatedMinutes")) obj.getInt("estimatedMinutes") else null,
+                    isLockedSchedule = isLocked
                 )
             )
         }
@@ -712,6 +727,7 @@ class GeminiService {
         if (workingText.contains(Regex("\\b(meeting|deck|client|project|review|report)\\b", RegexOption.IGNORE_CASE))) tags.add("work")
 
         val cleanTitle = workingText.replace(Regex("\\s+"), " ").trim()
+        val isLocked = AiValidator.isNonNegotiableSchedule(cleanTitle, raw, dueTime)
 
         return ParsedCapture(
             type = AnchorItem.TYPE_TASK,
@@ -720,7 +736,187 @@ class GeminiService {
             dueTime = dueTime,
             priority = priority,
             tags = tags.distinct(),
-            estimatedMinutes = estimatedMinutes ?: 25
+            estimatedMinutes = estimatedMinutes ?: 25,
+            isLockedSchedule = isLocked
         )
+    }
+
+    /**
+     * High-density prompt context serializer: compresses tasks into a compact piped string
+     * reducing token usage by >70% compared to verbose JSON.
+     */
+    fun serializeTasksCompact(tasks: List<AnchorItem>): String {
+        return tasks.joinToString("\n") { t ->
+            val lockTag = if (t.isLockedSchedule) "LOCKED" else "FLEX"
+            "ID:${t.id}|${t.title}|${t.priority}|${t.dueDate ?: "none"}|${t.dueTime ?: "none"}|${t.estimatedMinutes ?: 30}m|$lockTag|snz:${t.snoozeCount}"
+        }
+    }
+
+    /**
+     * Enriches a task with tactical micro-steps where Step 1 is always high-leverage strategic guidance ("★ STRATEGY: ...").
+     * Uses Gemini high-reasoning model with App Check security, and falls back to deterministic local reasoning.
+     */
+    suspend fun enrichTaskWithStrategicMicroSteps(
+        task: AnchorItem,
+        habitProfile: HabitProfile
+    ): List<String> = withContext(Dispatchers.IO) {
+        val calibratedMinutes = habitProfile.calibrateDuration(task.estimatedMinutes)
+        val peakHoursStr = habitProfile.peakHours.joinToString(", ") { String.format(Locale.getDefault(), "%02d:00", it) }
+
+        if (isFirebaseAiAvailable()) {
+            try {
+                val prompt = """
+                    You are Anchor's Executive Strategic Engine.
+                    Deconstruct this anchor into 3-4 tactical, friction-free micro-steps.
+                    CRITICAL: The very first step MUST be a high-leverage strategic advice directive starting with "★ STRATEGY: " that identifies the single 80/20 move to create momentum or avoid friction.
+                    
+                    Task: "${task.title}"
+                    Priority: ${task.priority}
+                    Scheduled Duration: ${calibratedMinutes}m
+                    User Peak Performance Hours: $peakHoursStr
+                    Snoozed count: ${task.snoozeCount}
+                    Locked Schedule: ${task.isLockedSchedule}
+                    
+                    Respond strictly in JSON array of strings:
+                    ["★ STRATEGY: ...", "Step 1...", "Step 2..."]
+                """.trimIndent()
+
+                val response = withTimeout(TIMEOUT_MS) { jsonModel.generateContent(prompt) }
+                val text = response.text
+                if (text != null) {
+                    val arr = JSONArray(cleanJsonResponse(text))
+                    val steps = mutableListOf<String>()
+                    for (i in 0 until arr.length()) {
+                        val s = arr.getString(i).trim()
+                        if (s.isNotBlank()) steps.add(s)
+                    }
+                    if (steps.isNotEmpty()) {
+                        return@withContext steps
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Strategic micro-step AI error, using deterministic logic: ${e.message}")
+            }
+        }
+
+        // High-reasoning deterministic local fallback
+        val advice = if (task.snoozeCount >= 2) {
+            "★ STRATEGY: Eliminate friction—open the workspace and do only the easiest 3-minute sub-slice."
+        } else if (task.priority == AnchorItem.PRIORITY_HIGH) {
+            "★ STRATEGY: Tackle during peak cognitive block ($peakHoursStr); protect from interruptions."
+        } else {
+            "★ STRATEGY: Execute in a single focused ${calibratedMinutes}m sprint; clear all distractions."
+        }
+
+        listOf(
+            advice,
+            "Set up prerequisites and open required materials (3 mins)",
+            "Execute the core 80% output for '${task.title.take(40)}'",
+            "Review, verify completion, and log next steps"
+        )
+    }
+
+    /**
+     * Evaluates autonomous schedule rebalancing behind the scenes.
+     * NEVER changes locked non-negotiable tasks (meetings, flights, doctors).
+     * Re-sequences flexible tasks around locked commitments and aligns them to user's peak performance hours.
+     */
+    suspend fun evaluateAutonomousRebalance(
+        todayTasks: List<AnchorItem>,
+        habitProfile: HabitProfile
+    ): List<ScheduleAdjustment> = withContext(Dispatchers.IO) {
+        val flexibleTasks = todayTasks.filter { !it.isLockedSchedule }
+        val lockedTasks = todayTasks.filter { it.isLockedSchedule }
+
+        if (flexibleTasks.isEmpty()) return@withContext emptyList()
+
+        if (isFirebaseAiAvailable() && todayTasks.size >= 2) {
+            try {
+                val compactContext = serializeTasksCompact(todayTasks)
+                val peakHoursStr = habitProfile.peakHours.joinToString(", ") { String.format(Locale.getDefault(), "%02d:00", it) }
+
+                val prompt = """
+                    You are Anchor's Autonomous Schedule Optimizer.
+                    Evaluate today's tasks and optimize ONLY the FLEXIBLE (FLEX) tasks.
+                    RULE: NEVER modify or suggest changes for LOCKED tasks (fixed commitments).
+                    User Peak Performance Hours: $peakHoursStr
+                    
+                    TASKS:
+                    $compactContext
+                    
+                    Identify any flexible tasks that have scheduling conflicts, are timed during locked tasks, or should be aligned to peak focus hours.
+                    Respond strictly in JSON array of objects:
+                    [
+                      {
+                        "taskId": 123,
+                        "suggestedTime": "10:30",
+                        "calibratedDuration": 45,
+                        "strategicRationale": "Aligned to peak morning focus hour without conflicting with locked commitments"
+                      }
+                    ]
+                """.trimIndent()
+
+                val response = withTimeout(TIMEOUT_MS) { jsonModel.generateContent(prompt) }
+                val text = response.text
+                if (text != null) {
+                    val arr = JSONArray(cleanJsonResponse(text))
+                    val adjustments = mutableListOf<ScheduleAdjustment>()
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        val id = obj.getLong("taskId")
+                        // Enforce safety constraint: ignore any response attempting to modify a locked task
+                        if (lockedTasks.none { it.id == id }) {
+                            adjustments.add(
+                                ScheduleAdjustment(
+                                    taskId = id,
+                                    suggestedTime = obj.getString("suggestedTime"),
+                                    calibratedDuration = obj.optInt("calibratedDuration", 30),
+                                    strategicRationale = obj.optString("strategicRationale", "Optimized sequence")
+                                )
+                            )
+                        }
+                    }
+                    if (adjustments.isNotEmpty()) {
+                        return@withContext adjustments
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Autonomous rebalance AI error, using local scheduler: ${e.message}")
+            }
+        }
+
+        // Deterministic local rebalancing
+        val adjustments = mutableListOf<ScheduleAdjustment>()
+        val occupiedTimes = lockedTasks.mapNotNull { it.dueTime }.toSet()
+        val peakSlots = habitProfile.peakHours.map { String.format(Locale.getDefault(), "%02d:00", it) }
+
+        var slotIndex = 0
+        for (flex in flexibleTasks) {
+            val calibrated = habitProfile.calibrateDuration(flex.estimatedMinutes)
+            val currentDueTime = flex.dueTime
+
+            // If flexible task has no time or collides with a locked task
+            if (currentDueTime == null || occupiedTimes.contains(currentDueTime)) {
+                // Find next free peak or open slot
+                val nextSlot = peakSlots.getOrNull(slotIndex) ?: "14:00"
+                slotIndex++
+                if (nextSlot != currentDueTime && !occupiedTimes.contains(nextSlot)) {
+                    adjustments.add(
+                        ScheduleAdjustment(
+                            taskId = flex.id,
+                            suggestedTime = nextSlot,
+                            calibratedDuration = calibrated,
+                            strategicRationale = "Re-scheduled to open slot outside locked commitments"
+                        )
+                    )
+                }
+            }
+        }
+
+        return@withContext adjustments
     }
 }

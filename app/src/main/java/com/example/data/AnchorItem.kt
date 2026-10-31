@@ -33,7 +33,8 @@ data class AnchorItem(
     val snoozeUntil: Long? = null,
     val aiSorted: Boolean = false,
     val aiBreakdownSteps: String? = null, // JSON or bulleted micro-steps
-    val sharedUri: String? = null
+    val sharedUri: String? = null,
+    val isLockedSchedule: Boolean = false
 ) {
     companion object {
         const val TYPE_TASK = "task"

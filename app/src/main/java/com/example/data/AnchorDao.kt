@@ -62,6 +62,25 @@ interface AnchorDao {
         estimatedMinutes: Int?
     ): Int
 
+    @Query("UPDATE anchor_items SET type = :type, title = :title, dueDate = :dueDate, dueTime = :dueTime, priority = :priority, tags = :tags, estimatedMinutes = :estimatedMinutes, isLockedSchedule = :isLockedSchedule, aiSorted = 1 WHERE id = :id AND status != 'DONE'")
+    suspend fun updateAiEnrichmentWithLock(
+        id: Long,
+        type: String,
+        title: String,
+        dueDate: String?,
+        dueTime: String?,
+        priority: String,
+        tags: String,
+        estimatedMinutes: Int?,
+        isLockedSchedule: Boolean
+    ): Int
+
+    @Query("UPDATE anchor_items SET aiBreakdownSteps = :steps WHERE id = :id")
+    suspend fun updateBreakdownSteps(id: Long, steps: String)
+
+    @Query("SELECT * FROM anchor_items WHERE status = 'TODAY' AND type = 'task' ORDER BY todayOrder ASC, dueTime ASC")
+    suspend fun getTodayItemsSync(): List<AnchorItem>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: AnchorItem): Long
 

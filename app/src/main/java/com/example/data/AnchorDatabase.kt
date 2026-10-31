@@ -8,12 +8,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [AnchorItem::class],
-    version = 2,
+    entities = [AnchorItem::class, HabitMetric::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AnchorDatabase : RoomDatabase() {
     abstract fun anchorDao(): AnchorDao
+    abstract fun habitDao(): HabitDao
 
     companion object {
         @Volatile
@@ -28,6 +29,27 @@ abstract class AnchorDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anchor_items ADD COLUMN isLockedSchedule INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS habit_metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        itemId INTEGER NOT NULL,
+                        actionType TEXT NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        hourOfDay INTEGER NOT NULL,
+                        dayOfWeek INTEGER NOT NULL,
+                        estimatedMinutes INTEGER NOT NULL,
+                        actualMinutes INTEGER,
+                        snoozeCountAtAction INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_habit_metrics_actionType ON habit_metrics(actionType)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_habit_metrics_timestamp ON habit_metrics(timestamp)")
+            }
+        }
+
         fun getDatabase(context: Context): AnchorDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -35,7 +57,8 @@ abstract class AnchorDatabase : RoomDatabase() {
                     AnchorDatabase::class.java,
                     "anchor_database"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .fallbackToDestructiveMigration(false)
                 .build()
                 INSTANCE = instance
                 instance

@@ -9,6 +9,8 @@ import com.example.ai.ParsedCapture
 import com.example.data.AnchorDatabase
 import com.example.data.AnchorItem
 import com.example.data.AnchorRepository
+import com.example.data.HabitMetric
+import com.example.data.HabitProfiler
 import com.example.notification.AnchorAlarmScheduler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -44,7 +46,7 @@ class AnchorSystemReliabilityTest {
             .allowMainThreadQueries()
             .build()
         geminiService = GeminiService()
-        repository = AnchorRepository(database.anchorDao(), geminiService, context)
+        repository = AnchorRepository(database.anchorDao(), geminiService, context, habitDao = database.habitDao())
     }
 
     @After
@@ -258,5 +260,80 @@ class AnchorSystemReliabilityTest {
 
         assertTrue(answer.relevantItems.any { it.title == "Reply to quick email" })
         assertFalse(answer.relevantItems.any { it.title == "Rebuild server cluster" })
+    }
+
+    // 7. Behind-The-Scenes Task Mutability (Non-Negotiable vs Flexible)
+    @Test
+    fun `task mutability detects locked external commitments vs flexible internal tasks`() {
+        // Non-negotiable commitments
+        assertTrue(AiValidator.isNonNegotiableSchedule("Flight to NYC", "Flight to NYC at 3pm", "15:00"))
+        assertTrue(AiValidator.isNonNegotiableSchedule("Doctor appointment with Dr Smith", "Doctor appointment", "10:30"))
+        assertTrue(AiValidator.isNonNegotiableSchedule("Job interview with Google", "Interview tomorrow at 2pm", "14:00"))
+
+        // Flexible self-directed tasks
+        assertFalse(AiValidator.isNonNegotiableSchedule("Draft quarterly report", "Draft report tomorrow", "11:00"))
+        assertFalse(AiValidator.isNonNegotiableSchedule("Clean the garage", "Clean garage this weekend", null))
+        assertFalse(AiValidator.isNonNegotiableSchedule("Review pull requests", "Review PRs", null))
+    }
+
+    // 8. Habit Profiler & Duration Self-Calibration
+    @Test
+    fun `habit profiler calculates estimation multiplier and auto corrects duration`() = runBlocking {
+        val habitDao = database.habitDao()
+
+        // Log 3 tasks where user estimated 30 mins but actually took 45 mins (ratio = 1.5)
+        habitDao.insert(HabitMetric(itemId = 1, actionType = "complete", hourOfDay = 10, dayOfWeek = 2, estimatedMinutes = 30, actualMinutes = 45))
+        habitDao.insert(HabitMetric(itemId = 2, actionType = "complete", hourOfDay = 10, dayOfWeek = 3, estimatedMinutes = 30, actualMinutes = 45))
+        habitDao.insert(HabitMetric(itemId = 3, actionType = "complete", hourOfDay = 14, dayOfWeek = 4, estimatedMinutes = 30, actualMinutes = 45))
+
+        val profiler = HabitProfiler(habitDao)
+        val profile = profiler.getProfile()
+
+        // Verify multiplier is ~1.5
+        assertEquals(1.5f, profile.estimationMultiplier, 0.05f)
+
+        // Verify self-correction calibration: 40 mins initial becomes 60 mins
+        val calibrated = profile.calibrateDuration(40)
+        assertEquals(60, calibrated)
+    }
+
+    // 9. High-Density Token-Guarded Context Serializer
+    @Test
+    fun `compact prompt serialization produces token efficient representations`() {
+        val lockedTask = AnchorItem(id = 1, title = "Flight to SFO", priority = AnchorItem.PRIORITY_HIGH, dueDate = "2026-11-01", dueTime = "08:30", estimatedMinutes = 120, isLockedSchedule = true)
+        val flexTask = AnchorItem(id = 2, title = "Write newsletter", priority = AnchorItem.PRIORITY_MEDIUM, dueDate = "2026-11-01", dueTime = "14:00", estimatedMinutes = 45, isLockedSchedule = false)
+
+        val compact = geminiService.serializeTasksCompact(listOf(lockedTask, flexTask))
+
+        assertTrue(compact.contains("ID:1|Flight to SFO|high|2026-11-01|08:30|120m|LOCKED|snz:0"))
+        assertTrue(compact.contains("ID:2|Write newsletter|medium|2026-11-01|14:00|45m|FLEX|snz:0"))
+    }
+
+    // 10. Tactical Strategic Micro-Step Generation
+    @Test
+    fun `strategic micro-step enrichment injects high leverage guidance as step one`() = runBlocking {
+        val highPrioTask = AnchorItem(id = 5, title = "Complete pitch deck", priority = AnchorItem.PRIORITY_HIGH, estimatedMinutes = 60)
+        val profile = HabitProfiler(database.habitDao()).getProfile()
+
+        val steps = geminiService.enrichTaskWithStrategicMicroSteps(highPrioTask, profile)
+
+        assertTrue(steps.isNotEmpty())
+        assertTrue("Step 1 must contain strategic guidance marker", steps[0].startsWith("★ STRATEGY:"))
+    }
+
+    // 11. Autonomous Schedule Rebalance Never Modifies Locked Commitments
+    @Test
+    fun `autonomous rebalance never touches locked tasks and reschedules flexible ones`() = runBlocking {
+        val lockedMeeting = AnchorItem(id = 100, title = "Client Meeting", dueTime = "14:00", isLockedSchedule = true, estimatedMinutes = 60)
+        val conflictingFlex = AnchorItem(id = 101, title = "Organize desk", dueTime = "14:00", isLockedSchedule = false, estimatedMinutes = 30)
+
+        val profile = HabitProfiler(database.habitDao()).getProfile()
+        val adjustments = geminiService.evaluateAutonomousRebalance(listOf(lockedMeeting, conflictingFlex), profile)
+
+        // Must NOT suggest any change to locked task ID 100
+        assertFalse("Locked task must never be adjusted", adjustments.any { it.taskId == 100L })
+
+        // Should adjust the conflicting flexible task ID 101
+        assertTrue("Conflicting flexible task should be adjusted", adjustments.any { it.taskId == 101L })
     }
 }
