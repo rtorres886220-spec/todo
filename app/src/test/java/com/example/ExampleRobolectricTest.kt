@@ -46,4 +46,10 @@ class ExampleRobolectricTest {
         assertEquals("21:15", settings.eveningTime)
         assertEquals("23:00 - 06:00", settings.quietHours)
     }
+
+    @Test
+    fun `default tab on app load is always TODAY`() {
+        val state = com.example.viewmodel.AnchorUiState()
+        assertEquals(com.example.viewmodel.AnchorTab.TODAY, state.activeTab)
+    }
 }

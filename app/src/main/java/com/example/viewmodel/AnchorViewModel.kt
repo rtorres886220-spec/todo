@@ -35,7 +35,7 @@ enum class AnchorTab(val label: String) {
 }
 
 data class AnchorUiState(
-    val activeTab: AnchorTab = AnchorTab.INBOX,
+    val activeTab: AnchorTab = AnchorTab.TODAY,
     val clipboardCandidate: String? = null,
     val undoItem: AnchorItem? = null,
     val undoMessage: String? = null,
@@ -87,6 +87,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
         val prefs = AnchorPreferences.get(app)
         _uiState.update {
             it.copy(
+                activeTab = AnchorTab.TODAY,
                 morningTime = prefs.morningBriefTime,
                 eveningTime = prefs.eveningReviewTime,
                 quietHours = prefs.quietHours,
