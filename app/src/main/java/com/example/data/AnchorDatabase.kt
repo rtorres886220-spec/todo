@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [AnchorItem::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AnchorDatabase : RoomDatabase() {
@@ -17,6 +19,15 @@ abstract class AnchorDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AnchorDatabase? = null
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anchor_items ADD COLUMN parentId INTEGER DEFAULT NULL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_anchor_items_parentId ON anchor_items(parentId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_anchor_items_status ON anchor_items(status)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_anchor_items_dueDate ON anchor_items(dueDate)")
+            }
+        }
+
         fun getDatabase(context: Context): AnchorDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -24,7 +35,7 @@ abstract class AnchorDatabase : RoomDatabase() {
                     AnchorDatabase::class.java,
                     "anchor_database"
                 )
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_1_2)
                 .build()
                 INSTANCE = instance
                 instance

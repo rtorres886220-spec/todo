@@ -5,19 +5,24 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import com.example.data.AnchorItem
 import com.example.receiver.AnchorNotificationReceiver
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Locale
 
 object AnchorAlarmScheduler {
+
+    private const val TAG = "AnchorAlarmScheduler"
 
     fun scheduleTaskReminder(context: Context, item: AnchorItem) {
         val targetMillis = calculateTaskTriggerMillis(item) ?: return
         if (targetMillis <= System.currentTimeMillis()) return
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+
+        // Cancel previous alarm to avoid duplicate intents
+        cancelTaskReminder(context, item.id)
+
         val intent = Intent(context, AnchorNotificationReceiver::class.java).apply {
             action = AnchorNotificationReceiver.ACTION_TASK_REMINDER
             putExtra(AnchorNotificationReceiver.EXTRA_TASK_ID, item.id)
@@ -95,12 +100,19 @@ object AnchorAlarmScheduler {
             } else {
                 alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
-        } catch (_: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "SecurityException scheduling exact alarm, falling back to inexact: ${e.message}")
+            try {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } catch (inner: Exception) {
+                Log.e(TAG, "Failed fallback alarm scheduling", inner)
+            }
         }
     }
 
-    private fun calculateTaskTriggerMillis(item: AnchorItem): Long? {
+    fun calculateTaskTriggerMillis(item: AnchorItem): Long? {
+        if (item.status == AnchorItem.STATUS_DONE) return null
+
         if (item.snoozeUntil != null && item.snoozeUntil > System.currentTimeMillis()) {
             return item.snoozeUntil
         }
@@ -108,15 +120,32 @@ object AnchorAlarmScheduler {
         val dueTime = item.dueTime ?: "09:00"
 
         return try {
-            val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-            val date = format.parse("$dueDate $dueTime")
-            date?.time
-        } catch (_: Exception) {
+            val dateParts = dueDate.split("-")
+            val year = dateParts[0].toInt()
+            val month = dateParts[1].toInt() - 1
+            val day = dateParts[2].toInt()
+
+            val timeParts = dueTime.split(":")
+            val hour = timeParts.getOrNull(0)?.toIntOrNull() ?: 9
+            val minute = timeParts.getOrNull(1)?.toIntOrNull() ?: 0
+
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.YEAR, year)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, day)
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            cal.timeInMillis
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse trigger time for item ${item.id}", e)
             null
         }
     }
 
-    private fun calculateNextDailyMillis(timeStr: String): Long {
+    fun calculateNextDailyMillis(timeStr: String): Long {
         val parts = timeStr.split(":")
         val hour = parts.getOrNull(0)?.toIntOrNull() ?: 8
         val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0

@@ -2,90 +2,65 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Design language: "soft dimensional dark"
-// Background: #08080A with a very faint radial lift (#101014) behind hero.
-val SoftDarkBackground = Color(0xFF08080A)
-val SoftDarkRadialLift = Color(0xFF101014)
+// Design language: "Sculpted 3D Ceramic Alabaster & Champagne Gold"
+// Clean, luminous light mode with multi-tier ambient occlusion shadows, specular 3D light bevels,
+// and burnished champagne gold telemetry accents.
 
-// Surface tokens
-val Surface1 = Color(0xFF131316)
-val Surface2 = Color(0xFF1B1B20)
+val SoftLightBackground = Color(0xFFF6F7FA)
+val SoftLightRadialLift = Color(0xFFFFFFFF)
 
-// Raised surface highlight: inset 0 1px 0 rgba(255,255,255,0.07)
-val SurfaceHighlight = Color(0x12FFFFFF)
-val HairlineColor = Color(0x10FFFFFF)
+// Backward-compatibility aliases for existing imports
+val SoftDarkBackground = SoftLightBackground
+val SoftDarkRadialLift = SoftLightRadialLift
 
-// Text tokens: primary #F2EFEA (warm off-white), secondary #A5A29B, tertiary #6E6C67
-val TextPrimary = Color(0xFFF2EFEA)
-val TextSecondary = Color(0xFFA5A29B)
-val TextTertiary = Color(0xFF6E6C67)
+// Surface tokens: Pure ceramic white (Surface1) & sculpted matte container (Surface2)
+val Surface1 = Color(0xFFFFFFFF)
+val Surface2 = Color(0xFFEFF2F8)
+val SurfaceSunken = Color(0xFFE4E8F2)
 
-// Primary accent: Champagne gold #E6C98A (replaces old cyan everywhere)
-val AccentGold = Color(0xFFE6C98A)
-val AccentGoldDim = Color(0x33E6C98A)
-val AccentGoldGlow = Color(0x26E6C98A)
-val GoldOnDarkText = Color(0xFF1A1407)
+// Raised surface specular highlights and structural boundaries
+val SurfaceHighlight = Color(0x99FFFFFF)
+val HairlineColor = Color(0x180F172A)
+val ShadowAmbient = Color(0x140E182A)
+val ShadowOcclusion = Color(0x16070E1A)
 
-// Urgency: ember coral #FF7A5C (for overdue only)
-val UrgencyCoral = Color(0xFFFF7A5C)
-val UrgencyCoralDim = Color(0x33FF7A5C)
+// Text tokens: primary deep obsidian onyx #0F141E, secondary slate #555E6F, tertiary mist #8E98AA
+val TextPrimary = Color(0xFF0F141E)
+val TextSecondary = Color(0xFF555E6F)
+val TextTertiary = Color(0xFF8E98AA)
 
-// Category tints: deep, desaturated dark versions of soft pastels
-// Each has matching brighter foreground (icon and date text) at ~75% lightness
-val TintOrchidStart = Color(0xFF2A1F2B)
-val TintOrchidEnd = Color(0xFF1F1822)
-val TintOrchidFg = Color(0xFFE2A9E8)
+// Primary accent: Rich metallic champagne gold #BF8828 (commanding and high contrast on light ceramic)
+val AccentGold = Color(0xFFBF8828)
+val AccentGoldDim = Color(0x1CBF8828)
+val AccentGoldGlow = Color(0x14BF8828)
+val GoldOnDarkText = Color(0xFFFFFFFF)
 
-val TintSageStart = Color(0xFF1D2620)
-val TintSageEnd = Color(0xFF171E1A)
-val TintSageFg = Color(0xFFA9D8B5)
+// Urgency: Ember crimson coral #EB442C (for overdue tasks)
+val UrgencyCoral = Color(0xFFEB442C)
+val UrgencyCoralDim = Color(0x1EEB442C)
 
-val TintApricotStart = Color(0xFF2C221B)
-val TintApricotEnd = Color(0xFF221A15)
-val TintApricotFg = Color(0xFFE6B798)
+// Category tints: luminous frosted pastel ceramic cards with rich contrasting foreground typography
+val TintOrchidStart = Color(0xFFFAF4FC)
+val TintOrchidEnd = Color(0xFFF1E3F7)
+val TintOrchidFg = Color(0xFF882E9E)
 
-val TintSlateStart = Color(0xFF1C2230)
-val TintSlateEnd = Color(0xFF161B26)
-val TintSlateFg = Color(0xFFA1B9DF)
+val TintSageStart = Color(0xFFF1F9F3)
+val TintSageEnd = Color(0xFFE1F2E6)
+val TintSageFg = Color(0xFF1E7A3E)
 
-val TintRoseStart = Color(0xFF2B1E22)
-val TintRoseEnd = Color(0xFF21171A)
-val TintRoseFg = Color(0xFFE4A2AF)
+val TintApricotStart = Color(0xFFFFF6ED)
+val TintApricotEnd = Color(0xFFFEE6D2)
+val TintApricotFg = Color(0xFFB55512)
 
-// Swipe wash colors: gold for Today, slate for snooze, soft white for done
-val SwipeWashToday = Color(0x2EE6C98A)
-val SwipeWashSnooze = Color(0x2E1C2230)
-val SwipeWashDone = Color(0x2EF2EFEA)
+val TintSlateStart = Color(0xFFF2F6FC)
+val TintSlateEnd = Color(0xFFE3EDFA)
+val TintSlateFg = Color(0xFF2658A0)
 
-// Backward compatibility references for existing code
-val QuietBackground = SoftDarkBackground
-val QuietBackgroundLift = Surface1
-val QuietAccent = AccentGold
-val QuietAccentDim = AccentGoldDim
-val QuietAccentGlow = AccentGoldGlow
-val QuietUrgency = UrgencyCoral
-val QuietUrgencyDim = UrgencyCoralDim
-val QuietHairline = HairlineColor
-val QuietHighlight = SurfaceHighlight
-val QuietGlassFill = Color(0x0AFFFFFF)
-val QuietTextPrimary = TextPrimary
-val QuietTextSecondary = TextSecondary
-val QuietTextTertiary = TextTertiary
+val TintRoseStart = Color(0xFFFFF2F4)
+val TintRoseEnd = Color(0xFFFEDFE5)
+val TintRoseFg = Color(0xFFA1233D)
 
-val AnchorBackground = SoftDarkBackground
-val AnchorSurface = Surface1
-val AnchorSurfaceVariant = Surface2
-val AnchorSurfaceHighlight = SurfaceHighlight
-val AnchorCyan = AccentGold
-val AnchorCyanDim = AccentGoldDim
-val AnchorCyanGlow = AccentGoldGlow
-val AnchorIndigo = TextTertiary
-val AnchorEmerald = TextPrimary
-val AnchorEmeraldDim = TextSecondary
-val AnchorAmber = UrgencyCoral
-val AnchorRose = UrgencyCoral
-val AnchorTextPrimary = TextPrimary
-val AnchorTextSecondary = TextSecondary
-val AnchorTextTertiary = TextTertiary
-val AnchorOutline = HairlineColor
-val AnchorOutlineVariant = HairlineColor
+// Swipe wash colors in light mode
+val SwipeWashToday = Color(0x28BF8828)
+val SwipeWashSnooze = Color(0x202658A0)
+val SwipeWashDone = Color(0x201E7A3E)

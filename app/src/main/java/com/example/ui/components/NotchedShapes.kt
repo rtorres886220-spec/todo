@@ -10,22 +10,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.AccentGoldGlow
 import com.example.ui.theme.Surface1
 import com.example.ui.theme.SurfaceHighlight
 import kotlin.random.Random
 
 /**
- * Three stacked shadows (tight dark, wide dark, faint tint-colored glow)
- * plus 1px inset top highlight (rgba(255,255,255,0.07)), light source from top-left.
+ * 3D Ceramic Depth: Multi-tier ambient occlusion shadows,
+ * pure specular top bevel (1.5px White), bottom contact edge, and optional tint radiance.
  */
 fun Modifier.softDimensionalDepth(
     cornerRadius: Dp = 28.dp,
@@ -37,29 +33,29 @@ fun Modifier.softDimensionalDepth(
     val w = size.width
     val h = size.height
 
-    // 1. Wide soft dark ambient shadow
+    // 1. Wide diffuse 3D ambient drop shadow
     drawRoundRect(
-        color = Color(0x38000000),
-        topLeft = Offset(0f, 6.dp.toPx()),
+        color = Color(0x120E182A),
+        topLeft = Offset(0f, 7.dp.toPx()),
         size = Size(w, h),
-        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + 2.dp.toPx(), r + 2.dp.toPx())
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r + 3.dp.toPx(), r + 3.dp.toPx())
     )
 
-    // 2. Tight contact shadow (slightly offset down-right from top-left light)
+    // 2. Crisp contact occlusion shadow
     drawRoundRect(
-        color = Color(0x55000000),
-        topLeft = Offset(1.dp.toPx(), 2.dp.toPx()),
+        color = Color(0x16070E1A),
+        topLeft = Offset(0f, 2.dp.toPx()),
         size = Size(w, h),
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r)
     )
 
-    // 3. Faint tint glow if specified
+    // 3. Faint tint radiance if specified
     if (faintTintGlow != null && faintTintGlow != Color.Transparent) {
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(faintTintGlow.copy(alpha = 0.22f), Color.Transparent),
+                colors = listOf(faintTintGlow.copy(alpha = 0.35f), Color.Transparent),
                 center = Offset(w * 0.25f, 0f),
-                radius = w * 0.7f
+                radius = w * 0.75f
             )
         )
     }
@@ -72,15 +68,58 @@ fun Modifier.softDimensionalDepth(
         cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r)
     )
 
-    // 1px inset top highlight (rgba(255,255,255,0.07))
+    // 1.5px crisp specular top bevel
     if (insetHighlight) {
         drawLine(
-            color = SurfaceHighlight,
-            start = Offset(r * 0.5f, 0.5f),
-            end = Offset(w - (r * 0.5f), 0.5f),
+            color = Color.White.copy(alpha = 0.85f),
+            start = Offset(r * 0.4f, 1.dp.toPx()),
+            end = Offset(w - (r * 0.4f), 1.dp.toPx()),
+            strokeWidth = 1.5.dp.toPx()
+        )
+        // Subtle bottom occlusion hairline
+        drawLine(
+            color = Color(0x0E000000),
+            start = Offset(r * 0.4f, h - 0.5f),
+            end = Offset(w - (r * 0.4f), h - 0.5f),
             strokeWidth = 1.dp.toPx()
         )
     }
+}
+
+/**
+ * Abnormal UI: Machined debossed 3D well (sunken channel with inner top shadow and bottom light reflection)
+ */
+fun Modifier.sculpted3DSunkenWell(
+    cornerRadius: Dp = 16.dp,
+    backgroundColor: Color = Color(0xFFEFF2F8)
+): Modifier = this.drawBehind {
+    val r = cornerRadius.toPx()
+    val w = size.width
+    val h = size.height
+
+    // Base sunken fill
+    drawRoundRect(
+        color = backgroundColor,
+        topLeft = Offset.Zero,
+        size = size,
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r)
+    )
+
+    // Inner top/left debossed shadow
+    drawLine(
+        color = Color(0x180E182A),
+        start = Offset(r * 0.3f, 1.dp.toPx()),
+        end = Offset(w - (r * 0.3f), 1.dp.toPx()),
+        strokeWidth = 1.5.dp.toPx()
+    )
+
+    // Bottom inner specular bounce reflection
+    drawLine(
+        color = Color.White.copy(alpha = 0.95f),
+        start = Offset(r * 0.3f, h - 1.dp.toPx()),
+        end = Offset(w - (r * 0.3f), h - 1.dp.toPx()),
+        strokeWidth = 1.dp.toPx()
+    )
 }
 
 /**
@@ -256,8 +295,8 @@ class NotchedSheetWithCradleShape(
  */
 fun Modifier.subtleFilmGrainOverlay(): Modifier = this.drawWithContent {
     drawContent()
-    // Stippled film grain noise points
-    val dotColor = Color(0x08FFFFFF) // ~3% opacity
+    // Stippled fine architectural stipple points (subtle texture on light ceramic)
+    val dotColor = Color(0x05000000) // ~2% opacity architectural stipple
     val random = Random(42)
     val widthInt = size.width.toInt().coerceAtLeast(1)
     val heightInt = size.height.toInt().coerceAtLeast(1)

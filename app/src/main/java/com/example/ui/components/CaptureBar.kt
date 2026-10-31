@@ -17,6 +17,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.graphics.graphicsLayer
@@ -63,10 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AccentGold
-import com.example.ui.theme.AccentGoldGlow
 import com.example.ui.theme.GeistMono
 import com.example.ui.theme.GoldOnDarkText
-import com.example.ui.theme.HairlineColor
 import com.example.ui.theme.PlusJakartaSans
 import com.example.ui.theme.Surface2
 import com.example.ui.theme.SurfaceHighlight
@@ -199,31 +198,83 @@ fun CaptureBar(
             }
         }
 
-        // Floating Surface 2 glass pill (28px radius, top highlight, long soft shadow)
+        // Quick Intelligence suggestions on focus
+        AnimatedVisibility(
+            visible = isFocused && text.isEmpty() && clipboardText == null,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "What am I forgetting?",
+                    "What can I finish in 20m?",
+                    "What should I focus on?"
+                ).forEach { prompt ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Surface2)
+                            .clickable {
+                                HapticHelper.vibrate8ms(context)
+                                onCapture(prompt)
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = prompt,
+                            fontFamily = GeistMono,
+                            fontSize = 10.sp,
+                            color = AccentGold,
+                            letterSpacing = 0.08.em
+                        )
+                    }
+                }
+            }
+        }
+
+        // Floating 3D Ceramic Glass Pill (28px radius, multi-tier ambient shadows, specular top bevel)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .drawBehind {
-                    // Long soft shadow cast below and above
+                    // Multi-tier 3D Ambient and contact drop shadows
                     drawRoundRect(
-                        color = Color(0x40000000),
-                        topLeft = Offset(0f, 6.dp.toPx()),
+                        color = Color(0x180E182A),
+                        topLeft = Offset(0f, 8.dp.toPx()),
+                        size = size,
+                        cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx())
+                    )
+                    drawRoundRect(
+                        color = Color(0x14070E1A),
+                        topLeft = Offset(0f, 2.dp.toPx()),
                         size = size,
                         cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx())
                     )
                 }
                 .clip(RoundedCornerShape(28.dp))
-                .background(Surface2)
+                .background(Color.White)
                 .drawBehind {
-                    // 1px top highlight (rgba(255,255,255,0.07))
+                    // 1.5px specular top highlight
                     drawLine(
-                        color = SurfaceHighlight,
-                        start = Offset(28.dp.toPx() * 0.5f, 0.5f),
-                        end = Offset(size.width - (28.dp.toPx() * 0.5f), 0.5f),
+                        color = Color.White,
+                        start = Offset(28.dp.toPx() * 0.5f, 1.dp.toPx()),
+                        end = Offset(size.width - (28.dp.toPx() * 0.5f), 1.dp.toPx()),
+                        strokeWidth = 1.5.dp.toPx()
+                    )
+                    // Subtle bottom occlusion edge
+                    drawLine(
+                        color = Color(0x10000000),
+                        start = Offset(28.dp.toPx() * 0.5f, size.height - 0.5f),
+                        end = Offset(size.width - (28.dp.toPx() * 0.5f), size.height - 0.5f),
                         strokeWidth = 1.dp.toPx()
                     )
                 }
-                .padding(horizontal = 18.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 7.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -294,35 +345,53 @@ fun CaptureBar(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 if (text.isNotBlank()) {
-                    // Send action button
+                    // 3D Metallic Send button
                     Box(
                         modifier = Modifier
                             .size(44.dp)
+                            .drawBehind {
+                                drawCircle(
+                                    color = Color(0x30BF8828),
+                                    radius = 23.dp.toPx(),
+                                    center = Offset(size.width / 2f, size.height / 2f + 3.dp.toPx())
+                                )
+                            }
                             .clip(CircleShape)
-                            .background(AccentGold)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color(0xFFDCAB4C), Color(0xFFB57D20))
+                                )
+                            )
+                            .drawBehind {
+                                drawCircle(
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    radius = size.minDimension / 2f - 1.dp.toPx(),
+                                    style = Stroke(width = 1.dp.toPx())
+                                )
+                            }
                             .clickable { submitAndClear() }
                             .testTag("capture_send_button"),
                         contentAlignment = Alignment.Center
                     ) {
                         Canvas(modifier = Modifier.size(20.dp)) {
-                            val stroke = 1.75.dp.toPx()
+                            val stroke = 2.dp.toPx()
                             val center = Offset(size.width / 2f, size.height / 2f)
                             drawLine(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 start = Offset(center.x - 5.dp.toPx(), center.y),
                                 end = Offset(center.x + 5.dp.toPx(), center.y),
                                 strokeWidth = stroke,
                                 cap = StrokeCap.Round
                             )
                             drawLine(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 start = Offset(center.x + 1.dp.toPx(), center.y - 4.dp.toPx()),
                                 end = Offset(center.x + 5.dp.toPx(), center.y),
                                 strokeWidth = stroke,
                                 cap = StrokeCap.Round
                             )
                             drawLine(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 start = Offset(center.x + 1.dp.toPx(), center.y + 4.dp.toPx()),
                                 end = Offset(center.x + 5.dp.toPx(), center.y),
                                 strokeWidth = stroke,
@@ -331,13 +400,24 @@ fun CaptureBar(
                         }
                     }
                 } else {
-                    // 44px gold orb containing a thin microphone glyph, pulsing with voice amplitude while recording
+                    // 44px 3D metallic gold orb containing microphone glyph
                     val orbScale = if (isRecording) micPulse else 1f
                     Box(
                         modifier = Modifier
                             .size(44.dp)
+                            .drawBehind {
+                                drawCircle(
+                                    color = Color(0x30BF8828),
+                                    radius = 23.dp.toPx(),
+                                    center = Offset(size.width / 2f, size.height / 2f + 3.dp.toPx())
+                                )
+                            }
                             .clip(CircleShape)
-                            .background(AccentGold)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color(0xFFDCAB4C), Color(0xFFB57D20))
+                                )
+                            )
                             .graphicsLayer {
                                 scaleX = orbScale
                                 scaleY = orbScale
@@ -364,9 +444,8 @@ fun CaptureBar(
                                 }
                             }
                             .drawBehind {
-                                // 1px highlight
                                 drawCircle(
-                                    color = Color.White.copy(alpha = 0.3f),
+                                    color = Color.White.copy(alpha = 0.5f),
                                     radius = size.minDimension / 2f - 1.dp.toPx(),
                                     style = Stroke(width = 1.dp.toPx())
                                 )
@@ -382,9 +461,9 @@ fun CaptureBar(
                             val micTop = center.y - 6.5.dp.toPx()
                             val micLeft = center.x - micW / 2f
 
-                            // Rounded mic capsule in GoldOnDarkText (#1A1407)
+                            // Rounded mic capsule in crisp white
                             drawRoundRect(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 topLeft = Offset(micLeft, micTop),
                                 size = Size(micW, micH),
                                 cornerRadius = CornerRadius(micW / 2f, micW / 2f),
@@ -394,7 +473,7 @@ fun CaptureBar(
                             // Cradle arc around lower capsule
                             val cradleRadius = 5.5.dp.toPx()
                             drawArc(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 startAngle = 0f,
                                 sweepAngle = 180f,
                                 useCenter = false,
@@ -406,7 +485,7 @@ fun CaptureBar(
                             // Stem line
                             val stemTop = center.y - 2.5.dp.toPx() + cradleRadius
                             drawLine(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 start = Offset(center.x, stemTop),
                                 end = Offset(center.x, stemTop + 3.5.dp.toPx()),
                                 strokeWidth = stroke,
@@ -415,7 +494,7 @@ fun CaptureBar(
 
                             // Base horizontal foot
                             drawLine(
-                                color = GoldOnDarkText,
+                                color = Color.White,
                                 start = Offset(center.x - 3.5.dp.toPx(), stemTop + 3.5.dp.toPx()),
                                 end = Offset(center.x + 3.5.dp.toPx(), stemTop + 3.5.dp.toPx()),
                                 strokeWidth = stroke,

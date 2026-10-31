@@ -1,21 +1,21 @@
 package com.example.ai
 
 import android.util.Log
-import com.example.BuildConfig
 import com.example.data.AnchorItem
+import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
+import com.google.firebase.ai.ai
+import com.google.firebase.ai.type.generationConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
 data class ParsedCapture(
@@ -47,67 +47,112 @@ data class SnoozeBreakdown(
     val subtasks: List<String>
 )
 
+data class IntelligenceAnswer(
+    val headline: String,
+    val answer: String,
+    val relevantItems: List<AnchorItem> = emptyList(),
+    val suggestedActions: List<String> = emptyList()
+)
+
 class GeminiService {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    companion object {
+        private const val TAG = "GeminiService"
+        private const val TIMEOUT_MS = 30_000L
+        private const val MODEL_NAME = "gemini-3.8-flash"
+    }
 
-    private val apiKey: String
-        get() = BuildConfig.GEMINI_API_KEY
+    private val jsonConfig = generationConfig {
+        responseMimeType = "application/json"
+        temperature = 0.2f
+    }
 
-    private val hasApiKey: Boolean
-        get() = apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY" && apiKey != "your_api_key_here"
+    private val textConfig = generationConfig {
+        temperature = 0.3f
+    }
+
+    // Lazy initialization of Firebase AI Logic models to prevent class-init crashes
+    private val jsonModel by lazy {
+        Firebase.ai.generativeModel(
+            modelName = MODEL_NAME,
+            generationConfig = jsonConfig
+        )
+    }
+
+    private val textModel by lazy {
+        Firebase.ai.generativeModel(
+            modelName = MODEL_NAME,
+            generationConfig = textConfig
+        )
+    }
+
+    private fun isFirebaseAiAvailable(): Boolean {
+        return try {
+            val app = try {
+                FirebaseApp.getInstance()
+            } catch (_: Exception) {
+                null
+            }
+            app != null
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     /**
      * Parses a zero-friction text capture into one or multiple structured items.
-     * Uses Gemini structured JSON when available, falls back to local heuristic NLP parser.
+     * Uses Firebase AI Logic with App Check security when available,
+     * validated through AiValidator, and seamlessly falls back to the local heuristic NLP engine.
      */
     suspend fun parseCapture(rawInput: String): List<ParsedCapture> = withContext(Dispatchers.IO) {
         val trimmed = rawInput.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
 
-        if (hasApiKey) {
+        if (isFirebaseAiAvailable()) {
             try {
-                val geminiResult = callGeminiForParsing(trimmed)
-                if (geminiResult.isNotEmpty()) {
-                    return@withContext geminiResult
+                val geminiResult = withTimeout(TIMEOUT_MS) {
+                    callAiForParsing(trimmed)
                 }
+                if (geminiResult.isNotEmpty()) {
+                    return@withContext geminiResult.map { AiValidator.normalize(it, trimmed) }
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.e("GeminiService", "Gemini parsing failed, falling back to heuristic", e)
+                Log.w(TAG, "Firebase AI parsing failed, falling back to local heuristic: ${e.message}")
             }
         }
 
         // Resilient fallback heuristic parser
-        return@withContext parseWithLocalHeuristics(trimmed)
+        return@withContext parseWithLocalHeuristics(trimmed).map { AiValidator.normalize(it, trimmed) }
     }
 
-    private fun callGeminiForParsing(text: String): List<ParsedCapture> {
+    private suspend fun callAiForParsing(text: String): List<ParsedCapture> {
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
 
         val systemPrompt = """
             You are the high-speed intelligence engine for 'Anchor', a zero-friction capture to-do and notes app.
             Today is $currentDay, $todayStr.
-            The user just typed or spoke: "$text"
+            The user captured: "$text"
             
             Instructions:
             1. If the input contains multiple distinct tasks or notes (e.g. combined with 'and', commas, or line breaks), split them into separate items.
             2. For each item determine:
                - "type": "task" or "note" (thoughts, ideas, snippets are notes; actions are tasks)
                - "title": concise, action-oriented title with filler words removed
-               - "dueDate": ISO format "YYYY-MM-DD" or null if not specified (resolve relative words like 'today', 'tomorrow', 'next friday', 'this weekend')
+               - "dueDate": ISO format "YYYY-MM-DD" or null if not explicitly mentioned or implied (resolve relative words like 'today', 'tomorrow', 'next friday', 'this weekend')
                - "dueTime": "HH:mm" in 24h format (e.g., '14:30', '09:00') or null if not specified
                - "priority": "high", "medium", "low", or "none"
                - "tags": array of 1-3 lowercase relevant tags (e.g. ["work", "errands", "health", "ideas"])
                - "estimatedMinutes": estimated duration in minutes (integer like 15, 30, 60) or null
             
-            Respond ONLY with a valid JSON array of objects. No markdown formatting, no code block backticks.
+            Respond ONLY with a valid JSON array of objects.
         """.trimIndent()
 
-        val jsonResponse = callGeminiApi(systemPrompt) ?: return emptyList()
-        val cleanedJson = cleanJsonResponse(jsonResponse)
+        val response = jsonModel.generateContent(systemPrompt)
+        val jsonText = response.text ?: return emptyList()
+        val cleanedJson = cleanJsonResponse(jsonText)
         val array = JSONArray(cleanedJson)
         val results = mutableListOf<ParsedCapture>()
 
@@ -136,6 +181,227 @@ class GeminiService {
     }
 
     /**
+     * Contextual Intelligence Engine:
+     * Answers queries about the user's real captured tasks and notes (grounded strictly in local DB).
+     */
+    suspend fun askContextualIntelligence(
+        query: String,
+        allTasks: List<AnchorItem>,
+        allNotes: List<AnchorItem>
+    ): IntelligenceAnswer = withContext(Dispatchers.IO) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) {
+            return@withContext IntelligenceAnswer(
+                headline = "How can Anchor help?",
+                answer = "Ask questions like 'What am I forgetting?', 'What can I finish in 20 minutes?', or 'What did I write about my car?'."
+            )
+        }
+
+        if (isFirebaseAiAvailable()) {
+            try {
+                val answer = withTimeout(TIMEOUT_MS) {
+                    callAiForContextualIntelligence(trimmed, allTasks, allNotes)
+                }
+                if (answer != null) {
+                    return@withContext answer
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Firebase AI contextual intelligence failed, using local reasoning: ${e.message}")
+            }
+        }
+
+        // Local grounded reasoning engine
+        return@withContext answerLocally(trimmed, allTasks, allNotes)
+    }
+
+    private suspend fun callAiForContextualIntelligence(
+        query: String,
+        tasks: List<AnchorItem>,
+        notes: List<AnchorItem>
+    ): IntelligenceAnswer? {
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val taskContext = tasks.take(30).joinToString("\n") { t ->
+            "- [ID:${t.id}] ${t.title} (Status: ${t.status}, Due: ${t.dueDate ?: "none"} ${t.dueTime ?: ""}, Priority: ${t.priority}, Snoozed: ${t.snoozeCount}x, Est: ${t.estimatedMinutes ?: 30}m, Tags: ${t.tags})"
+        }
+        val noteContext = notes.take(20).joinToString("\n") { n ->
+            "- [ID:${n.id}] ${n.title} (Raw: ${n.rawInput}, Tags: ${n.tags})"
+        }
+
+        val prompt = """
+            You are Anchor's intelligent personal assistant.
+            Today is $todayStr.
+            User Question: "$query"
+            
+            USER'S STORED TASKS:
+            $taskContext
+            
+            USER'S STORED NOTES:
+            $noteContext
+            
+            INSTRUCTIONS:
+            - Answer the user's question accurately based ONLY on the stored tasks and notes above.
+            - NEVER invent or hallucinate tasks, notes, or commitments not in the list.
+            - If asking about short tasks, pick tasks with estimated minutes <= 25.
+            - If asking about forgotten or neglected tasks, check overdue items or items snoozed repeatedly.
+            - If asking about notes, locate the exact note snippets.
+            - Identify matching task/note IDs in 'relevantIds'.
+            
+            Respond strictly in JSON format:
+            {
+              "headline": "Short crisp headline",
+              "answer": "Clear, direct 1-3 sentence answer",
+              "relevantIds": [ID1, ID2],
+              "suggestedActions": ["Action 1", "Action 2"]
+            }
+        """.trimIndent()
+
+        val response = jsonModel.generateContent(prompt)
+        val jsonText = response.text ?: return null
+        val json = JSONObject(cleanJsonResponse(jsonText))
+
+        val idsArray = json.optJSONArray("relevantIds")
+        val matchedIds = mutableSetOf<Long>()
+        if (idsArray != null) {
+            for (i in 0 until idsArray.length()) {
+                matchedIds.add(idsArray.getLong(i))
+            }
+        }
+        val relevantItems = (tasks + notes).filter { matchedIds.contains(it.id) }
+
+        val actionsArray = json.optJSONArray("suggestedActions")
+        val actions = mutableListOf<String>()
+        if (actionsArray != null) {
+            for (i in 0 until actionsArray.length()) {
+                actions.add(actionsArray.getString(i))
+            }
+        }
+
+        return IntelligenceAnswer(
+            headline = json.optString("headline", "Anchor Insights"),
+            answer = json.optString("answer", "Here is what I found based on your saved anchors."),
+            relevantItems = relevantItems,
+            suggestedActions = actions
+        )
+    }
+
+    /**
+     * Deterministic local reasoning engine when offline or Gemini is unavailable.
+     */
+    private fun answerLocally(
+        query: String,
+        tasks: List<AnchorItem>,
+        notes: List<AnchorItem>
+    ): IntelligenceAnswer {
+        val q = query.lowercase(Locale.getDefault())
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+        // 1. "What am I forgetting?" / Overdue / Slipping
+        if (q.contains("forget") || q.contains("slip") || q.contains("overdue") || q.contains("miss")) {
+            val overdue = tasks.filter { it.dueDate != null && it.dueDate < todayStr }
+            val snoozed = tasks.filter { it.snoozeCount >= 2 }
+            val items = (overdue + snoozed).distinctBy { it.id }.take(5)
+
+            return if (items.isNotEmpty()) {
+                IntelligenceAnswer(
+                    headline = "High Priority & Postponed",
+                    answer = "You have ${items.size} anchors that may need your attention: ${items.take(2).joinToString(" and ") { "'${it.title}'" }}.",
+                    relevantItems = items,
+                    suggestedActions = listOf("Reschedule slipped anchors", "Tackle easiest first")
+                )
+            } else {
+                IntelligenceAnswer(
+                    headline = "Nothing Slipped",
+                    answer = "You are up to date! There are no overdue or repeatedly postponed tasks.",
+                    relevantItems = emptyList()
+                )
+            }
+        }
+
+        // 2. "What can I finish in 20 minutes?" / Quick wins
+        if (q.contains("20") || q.contains("quick") || q.contains("minute") || q.contains("fast") || q.contains("short")) {
+            val shortTasks = tasks.filter { (it.estimatedMinutes ?: 25) <= 20 }.take(4)
+            return if (shortTasks.isNotEmpty()) {
+                IntelligenceAnswer(
+                    headline = "Quick Wins (Under 20 Mins)",
+                    answer = "You can knock out ${shortTasks.size} tasks right now: ${shortTasks.take(2).joinToString(" and ") { "'${it.title}'" }}.",
+                    relevantItems = shortTasks,
+                    suggestedActions = listOf("Start 5-minute timer", "Mark completed")
+                )
+            } else {
+                IntelligenceAnswer(
+                    headline = "No Short Tasks Estimated",
+                    answer = "All your current tasks are planned for 30+ minutes or unestimated. Pick any task and break off a 5-minute slice.",
+                    relevantItems = tasks.take(2)
+                )
+            }
+        }
+
+        // 3. "What have I repeatedly postponed?"
+        if (q.contains("postpone") || q.contains("snooze") || q.contains("procrastinat") || q.contains("stuck")) {
+            val habitual = tasks.filter { it.snoozeCount >= 1 }.sortedByDescending { it.snoozeCount }.take(5)
+            return if (habitual.isNotEmpty()) {
+                IntelligenceAnswer(
+                    headline = "Postponed Anchors",
+                    answer = "You have postponed ${habitual.size} items. The most delayed is '${habitual.first().title}' (postponed ${habitual.first().snoozeCount} times).",
+                    relevantItems = habitual,
+                    suggestedActions = listOf("Use Snooze Coach to break down", "Archive if no longer relevant")
+                )
+            } else {
+                IntelligenceAnswer(
+                    headline = "Zero Postponements",
+                    answer = "Great momentum! You haven't repeatedly postponed any anchors.",
+                    relevantItems = emptyList()
+                )
+            }
+        }
+
+        // 4. "What should I focus on today?"
+        if (q.contains("focus") || q.contains("today") || q.contains("priority") || q.contains("start")) {
+            val todayTasks = tasks.filter { it.status == AnchorItem.STATUS_TODAY || it.dueDate == todayStr }
+            val top = if (todayTasks.isNotEmpty()) todayTasks else tasks.filter { it.priority == AnchorItem.PRIORITY_HIGH }
+            val pick = top.take(3)
+            return IntelligenceAnswer(
+                headline = "Today's Core Focus",
+                answer = if (pick.isNotEmpty()) "Focus on: ${pick.joinToString(", ") { "'${it.title}'" }}." else "No tasks scheduled for today yet. Capture your top anchor above.",
+                relevantItems = pick,
+                suggestedActions = listOf("Do this next", "Sprint focus")
+            )
+        }
+
+        // 5. Notes search (e.g. "car", "idea", "meeting")
+        val keywords = q.replace(Regex("\\b(what|did|i|previously|write|about|where|find|is|are|the|my|a|an)\\b"), "")
+            .trim()
+            .split(" ")
+            .filter { it.length >= 3 }
+
+        if (keywords.isNotEmpty()) {
+            val matchedNotes = notes.filter { note ->
+                keywords.any { k ->
+                    note.title.contains(k, ignoreCase = true) ||
+                    note.rawInput.contains(k, ignoreCase = true) ||
+                    note.tags.contains(k, ignoreCase = true)
+                }
+            }
+            if (matchedNotes.isNotEmpty()) {
+                return IntelligenceAnswer(
+                    headline = "Found in Your Notes",
+                    answer = "Found ${matchedNotes.size} matching note(s): '${matchedNotes.first().title.take(60)}'.",
+                    relevantItems = matchedNotes
+                )
+            }
+        }
+
+        // Default response
+        return IntelligenceAnswer(
+            headline = "Anchor System Summary",
+            answer = "You have ${tasks.size} active tasks and ${notes.size} notes in your local Anchor database.",
+            relevantItems = tasks.take(3)
+        )
+    }
+
+    /**
      * Generates a Morning Brief: picking today's top 3 tasks from deadlines, priorities, and postponements.
      */
     suspend fun generateMorningBrief(activeTasks: List<AnchorItem>): MorningBrief = withContext(Dispatchers.IO) {
@@ -148,7 +414,7 @@ class GeminiService {
             )
         }
 
-        if (hasApiKey) {
+        if (isFirebaseAiAvailable()) {
             try {
                 val taskDescriptions = activeTasks.take(15).joinToString("\n") { task ->
                     "ID: ${task.id} | Title: ${task.title} | Priority: ${task.priority} | DueDate: ${task.dueDate} | Snoozed: ${task.snoozeCount} times | Est: ${task.estimatedMinutes ?: 30}m"
@@ -169,9 +435,10 @@ class GeminiService {
                     }
                 """.trimIndent()
 
-                val response = callGeminiApi(prompt)
-                if (response != null) {
-                    val json = JSONObject(cleanJsonResponse(response))
+                val response = withTimeout(TIMEOUT_MS) { jsonModel.generateContent(prompt) }
+                val jsonText = response.text
+                if (jsonText != null) {
+                    val json = JSONObject(cleanJsonResponse(jsonText))
                     val idsArray = json.optJSONArray("topTaskIds")
                     val ids = mutableListOf<Long>()
                     if (idsArray != null) {
@@ -186,8 +453,10 @@ class GeminiService {
                         estimatedTotalMinutes = json.optInt("estimatedTotalMinutes", 90)
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.e("GeminiService", "Morning brief AI generation error", e)
+                Log.w(TAG, "Morning brief AI generation error, using heuristic fallback: ${e.message}")
             }
         }
 
@@ -215,7 +484,7 @@ class GeminiService {
         val completedCount = doneToday.size
         val slippedIds = slipped.map { it.id }
 
-        if (hasApiKey) {
+        if (isFirebaseAiAvailable()) {
             try {
                 val doneTitles = doneToday.joinToString(", ") { it.title }
                 val slippedTitles = slipped.joinToString(", ") { it.title }
@@ -232,9 +501,10 @@ class GeminiService {
                     }
                 """.trimIndent()
 
-                val response = callGeminiApi(prompt)
-                if (response != null) {
-                    val json = JSONObject(cleanJsonResponse(response))
+                val response = withTimeout(TIMEOUT_MS) { jsonModel.generateContent(prompt) }
+                val jsonText = response.text
+                if (jsonText != null) {
+                    val json = JSONObject(cleanJsonResponse(jsonText))
                     return@withContext EveningReview(
                         summary = json.optString("summary", "You accomplished $completedCount anchors today!"),
                         completedCount = completedCount,
@@ -242,8 +512,10 @@ class GeminiService {
                         reflection = json.optString("reflection", "Sleep with a clear mind. Tomorrow is a fresh canvas.")
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.e("GeminiService", "Evening review AI error", e)
+                Log.w(TAG, "Evening review AI error, using heuristic: ${e.message}")
             }
         }
 
@@ -259,7 +531,7 @@ class GeminiService {
      * Snooze Coach: When a task is snoozed 3+ times, Gemini asks why and offers to break it down into micro-steps.
      */
     suspend fun breakdownSnoozedTask(taskTitle: String, snoozeCount: Int): SnoozeBreakdown = withContext(Dispatchers.IO) {
-        if (hasApiKey) {
+        if (isFirebaseAiAvailable()) {
             try {
                 val prompt = """
                     The user has postponed/snoozed this task $snoozeCount times: "$taskTitle"
@@ -267,7 +539,7 @@ class GeminiService {
                     
                     Provide:
                     1. "empathyPrompt": A warm, non-judgmental question asking why they feel stuck (e.g. "Is this missing clear info or does it just feel daunting?")
-                    2. "subtasks": An array of 2 to 3 microscopic, friction-free 5-minute first steps that will get them started immediately.
+                    2. "subtasks": An array of 2 to 4 microscopic, friction-free 5-minute first steps that will get them started immediately.
                     
                     Respond strictly in JSON:
                     {
@@ -276,9 +548,10 @@ class GeminiService {
                     }
                 """.trimIndent()
 
-                val response = callGeminiApi(prompt)
-                if (response != null) {
-                    val json = JSONObject(cleanJsonResponse(response))
+                val response = withTimeout(TIMEOUT_MS) { jsonModel.generateContent(prompt) }
+                val jsonText = response.text
+                if (jsonText != null) {
+                    val json = JSONObject(cleanJsonResponse(jsonText))
                     val subtasksArray = json.optJSONArray("subtasks")
                     val subtasks = mutableListOf<String>()
                     if (subtasksArray != null) {
@@ -286,17 +559,20 @@ class GeminiService {
                             subtasks.add(subtasksArray.getString(i))
                         }
                     }
+                    val validatedSubtasks = AiValidator.validateSubtasks(subtasks)
                     return@withContext SnoozeBreakdown(
                         empathyPrompt = json.optString("empathyPrompt", "You've snoozed this $snoozeCount times. Let's make it frictionless:"),
-                        subtasks = if (subtasks.isNotEmpty()) subtasks else listOf(
+                        subtasks = if (validatedSubtasks.isNotEmpty()) validatedSubtasks else listOf(
                             "Open relevant window/document for 2 minutes",
                             "Draft the very first sentence or note",
                             "Decide next action"
                         )
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.e("GeminiService", "Snooze breakdown error", e)
+                Log.w(TAG, "Snooze breakdown error, using heuristic: ${e.message}")
             }
         }
 
@@ -309,56 +585,6 @@ class GeminiService {
                 "Take a 5 minute break after"
             )
         )
-    }
-
-    private fun callGeminiApi(prompt: String): String? {
-        val models = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
-        for (model in models) {
-            try {
-                val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
-                val requestJson = JSONObject().apply {
-                    put("contents", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("parts", JSONArray().apply {
-                                put(JSONObject().apply {
-                                    put("text", prompt)
-                                })
-                            })
-                        })
-                    })
-                    put("generationConfig", JSONObject().apply {
-                        put("temperature", 0.2)
-                        put("responseMimeType", "application/json")
-                    })
-                }
-
-                val body = requestJson.toString().toRequestBody("application/json".toMediaType())
-                val request = Request.Builder()
-                    .url(url)
-                    .post(body)
-                    .build()
-
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val responseBody = response.body?.string() ?: return null
-                    val root = JSONObject(responseBody)
-                    val candidates = root.optJSONArray("candidates") ?: return null
-                    if (candidates.length() > 0) {
-                        val firstCandidate = candidates.getJSONObject(0)
-                        val content = firstCandidate.optJSONObject("content")
-                        val parts = content?.optJSONArray("parts")
-                        if (parts != null && parts.length() > 0) {
-                            return parts.getJSONObject(0).optString("text")
-                        }
-                    }
-                } else {
-                    Log.w("GeminiService", "Gemini API call returned status ${response.code} for $model: ${response.message}")
-                }
-            } catch (e: Exception) {
-                Log.e("GeminiService", "Error calling model $model", e)
-            }
-        }
-        return null
     }
 
     private fun cleanJsonResponse(raw: String): String {
@@ -378,7 +604,6 @@ class GeminiService {
      * Sophisticated local heuristic NLP parser: extracts compound tasks, dates, times, priority, tags.
      */
     fun parseWithLocalHeuristics(input: String): List<ParsedCapture> {
-        // Check if there are multiple statements separated by 'and also', 'and then', newlines, or bullets
         val segments = if (input.contains("\n")) {
             input.split("\n").map { it.trim() }.filter { it.isNotBlank() }
         } else if (input.contains("; ")) {
@@ -397,12 +622,12 @@ class GeminiService {
         val tags = mutableListOf<String>()
 
         // Extract #hashtags
-        val hashtagPattern = Pattern.compile("#(\\w+)")
+        val hashtagPattern = Pattern.compile("#([a-zA-Z0-9_-]+)")
         val matcher = hashtagPattern.matcher(workingText)
         while (matcher.find()) {
             matcher.group(1)?.let { tags.add(it.lowercase(Locale.getDefault())) }
         }
-        workingText = workingText.replace(Regex("#\\w+"), "").trim()
+        workingText = workingText.replace(Regex("#[a-zA-Z0-9_-]+"), "").trim()
 
         // Detect note vs task
         val isNote = workingText.startsWith("note:", ignoreCase = true) ||
@@ -415,7 +640,7 @@ class GeminiService {
             tags.add("note")
             return ParsedCapture(
                 type = AnchorItem.TYPE_NOTE,
-                title = workingText,
+                title = workingText.ifBlank { raw },
                 tags = tags
             )
         }
@@ -486,7 +711,6 @@ class GeminiService {
         if (workingText.contains(Regex("\\b(gym|workout|run|doctor|dentist|health)\\b", RegexOption.IGNORE_CASE))) tags.add("health")
         if (workingText.contains(Regex("\\b(meeting|deck|client|project|review|report)\\b", RegexOption.IGNORE_CASE))) tags.add("work")
 
-        // Clean up title
         val cleanTitle = workingText.replace(Regex("\\s+"), " ").trim()
 
         return ParsedCapture(

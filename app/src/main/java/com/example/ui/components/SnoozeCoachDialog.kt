@@ -27,16 +27,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ai.SnoozeBreakdown
 import com.example.data.AnchorItem
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietBackgroundLift
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
-import com.example.ui.theme.QuietUrgency
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.Surface1
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
+import com.example.ui.theme.UrgencyCoral
 import com.example.ui.util.HapticHelper
 
 @Composable
@@ -56,10 +55,10 @@ fun SnoozeCoachDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
                 .drawBehind {
-                    drawRect(color = QuietBackgroundLift)
+                    drawRect(color = Surface1)
                     // 1px top highlight
                     drawLine(
-                        color = QuietHighlight,
+                        color = SurfaceHighlight,
                         start = Offset(0f, 0.5f),
                         end = Offset(size.width, 0.5f),
                         strokeWidth = 1.dp.toPx()
@@ -77,17 +76,17 @@ fun SnoozeCoachDialog(
                 ) {
                     Text(
                         text = "SNOOZE COACH",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 12.sp,
-                        color = QuietUrgency,
+                        color = UrgencyCoral,
                         letterSpacing = 0.14.em
                     )
 
                     Text(
                         text = "CLOSE",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable { onDismiss() }
@@ -100,19 +99,19 @@ fun SnoozeCoachDialog(
                 // Item info
                 Text(
                     text = item.title,
-                    fontFamily = Manrope,
+                    fontFamily = PlusJakartaSans,
                     fontSize = 17.sp,
                     lineHeight = 22.sp,
-                    color = QuietTextPrimary
+                    color = TextPrimary
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                     text = "POSTPONED ${item.snoozeCount} TIMES",
-                    fontFamily = JetBrainsMono,
+                    fontFamily = GeistMono,
                     fontSize = 11.sp,
-                    color = QuietUrgency,
+                    color = UrgencyCoral,
                     letterSpacing = 0.14.em
                 )
 
@@ -129,15 +128,15 @@ fun SnoozeCoachDialog(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
-                                color = QuietUrgency,
+                                color = UrgencyCoral,
                                 strokeWidth = 1.5.dp
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "Distilling into 5-minute micro steps...",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 11.sp,
-                                color = QuietTextSecondary,
+                                color = TextSecondary,
                                 letterSpacing = 0.14.em
                             )
                         }
@@ -145,19 +144,19 @@ fun SnoozeCoachDialog(
                 } else {
                     Text(
                         text = breakdown.empathyPrompt,
-                        fontFamily = Manrope,
+                        fontFamily = PlusJakartaSans,
                         fontSize = 15.sp,
                         lineHeight = 22.sp,
-                        color = QuietTextSecondary
+                        color = TextSecondary
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
                         text = "SUGGESTED MICRO FIRST STEPS",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietAccent,
+                        color = AccentGold,
                         letterSpacing = 0.14.em
                     )
 
@@ -172,17 +171,17 @@ fun SnoozeCoachDialog(
                         ) {
                             Text(
                                 text = "0${idx + 1}",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 11.sp,
-                                color = QuietAccent,
+                                color = AccentGold,
                                 letterSpacing = 0.14.em
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = subtask,
-                                fontFamily = Manrope,
+                                fontFamily = PlusJakartaSans,
                                 fontSize = 15.sp,
-                                color = QuietTextPrimary,
+                                color = TextPrimary,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -203,9 +202,9 @@ fun SnoozeCoachDialog(
                     ) {
                         Text(
                             text = "APPLY MICRO STEPS",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = GeistMono,
                             fontSize = 12.sp,
-                            color = QuietAccent,
+                            color = AccentGold,
                             letterSpacing = 0.14.em
                         )
                     }

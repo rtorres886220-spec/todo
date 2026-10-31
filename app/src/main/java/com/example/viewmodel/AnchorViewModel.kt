@@ -6,19 +6,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ai.EveningReview
 import com.example.ai.GeminiService
+import com.example.ai.IntelligenceAnswer
 import com.example.ai.MorningBrief
 import com.example.ai.SnoozeBreakdown
 import com.example.data.AnchorDatabase
 import com.example.data.AnchorItem
-import com.example.data.AnchorRepository
 import com.example.data.AnchorPreferences
+import com.example.data.AnchorRepository
 import com.example.notification.AnchorAlarmScheduler
 import com.example.notification.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -49,6 +49,10 @@ data class AnchorUiState(
     val snoozeBreakdown: SnoozeBreakdown? = null,
     val isSettingsOpen: Boolean = false,
     val isGeneratingAi: Boolean = false,
+    val isIntelligenceOpen: Boolean = false,
+    val intelligenceQuery: String = "",
+    val intelligenceAnswer: IntelligenceAnswer? = null,
+    val isIntelligenceLoading: Boolean = false,
     val morningTime: String = "08:00",
     val eveningTime: String = "20:00",
     val quietHours: String = "22:00 - 07:00",
@@ -61,14 +65,17 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     private val app: Application = application
     private val db = AnchorDatabase.getDatabase(application)
     private val geminiService = GeminiService()
-    private val repository = AnchorRepository(db.anchorDao(), geminiService, viewModelScope)
+    private val repository = AnchorRepository(db.anchorDao(), geminiService, application, viewModelScope)
 
     private val _uiState = MutableStateFlow(AnchorUiState())
     val uiState: StateFlow<AnchorUiState> = _uiState.asStateFlow()
 
+    private val todayIso: String
+        get() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
     val inboxItems = repository.allInbox.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val todayItems = repository.allToday.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val upcomingItems = repository.allUpcoming.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val upcomingItems = repository.getUpcoming(todayIso).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val notes = repository.allNotes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val doneItems = repository.allDone.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val habitualSnoozed = repository.habitualSnoozed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -104,16 +111,47 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Zero-friction capture: instant local Room save, background Gemini sort.
+     * Determines whether user input is an intelligence query rather than a new task/note.
+     */
+    private fun isIntelligenceQuery(input: String): Boolean {
+        val trimmed = input.trim().lowercase(Locale.getDefault())
+        if (trimmed.startsWith("what am i forgetting") ||
+            trimmed.startsWith("what should i focus") ||
+            trimmed.startsWith("what have i postponed") ||
+            trimmed.startsWith("what can i finish in") ||
+            trimmed.startsWith("what did i write about") ||
+            trimmed.startsWith("ask:") ||
+            trimmed.startsWith("query:") ||
+            (trimmed.endsWith("?") && (trimmed.startsWith("what") || trimmed.startsWith("where") || trimmed.startsWith("which") || trimmed.startsWith("how")))
+        ) {
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Zero-friction capture:
+     * - If the user asks a question like "What am I forgetting?", routes to Contextual Intelligence.
+     * - Otherwise: instant local Room save, background AI enrichment, and automatic reminder scheduling.
      */
     fun capture(text: String, sharedUri: String? = null) {
-        if (text.isBlank() && sharedUri == null) return
+        val trimmed = text.trim()
+        if (trimmed.isBlank() && sharedUri == null) return
+
+        if (isIntelligenceQuery(trimmed)) {
+            val cleanQuery = trimmed.replace(Regex("^(ask|query):\\s*", RegexOption.IGNORE_CASE), "")
+            askIntelligence(cleanQuery)
+            return
+        }
+
         viewModelScope.launch {
-            val id = repository.captureInstant(text, sharedUri)
-            val created = repository.getItem(id)
-            if (created != null && created.dueDate != null) {
-                AnchorAlarmScheduler.scheduleTaskReminder(app, created)
-            }
+            repository.captureInstant(
+                rawText = trimmed,
+                sharedUri = sharedUri,
+                onComplete = {
+                    refreshOverdue()
+                }
+            )
             refreshOverdue()
         }
     }
@@ -121,10 +159,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun moveToToday(item: AnchorItem) {
         viewModelScope.launch {
             repository.moveToToday(item)
-            val updated = repository.getItem(item.id)
-            if (updated != null && updated.dueDate != null) {
-                AnchorAlarmScheduler.scheduleTaskReminder(app, updated)
-            }
+            refreshOverdue()
             showUndo(item, "Moved to Today")
         }
     }
@@ -132,13 +167,13 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun moveToInbox(item: AnchorItem) {
         viewModelScope.launch {
             repository.moveToInbox(item)
+            refreshOverdue()
             showUndo(item, "Moved to Inbox")
         }
     }
 
     fun completeTask(item: AnchorItem) {
         viewModelScope.launch {
-            AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
             repository.markCompleted(item)
             refreshOverdue()
             showUndo(item, "Task completed!")
@@ -148,21 +183,14 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun uncompleteTask(item: AnchorItem) {
         viewModelScope.launch {
             repository.uncomplete(item)
-            if (item.dueDate != null) {
-                AnchorAlarmScheduler.scheduleTaskReminder(app, item)
-            }
+            refreshOverdue()
             showUndo(item, "Restored to Inbox")
         }
     }
 
     fun snoozeTask(item: AnchorItem, hours: Int = 24) {
         viewModelScope.launch {
-            AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
-            repository.snooze(item, hours)
-            val updated = repository.getItem(item.id)
-            if (updated != null && updated.dueDate != null) {
-                AnchorAlarmScheduler.scheduleTaskReminder(app, updated)
-            }
+            repository.snooze(item, hours = hours)
             refreshOverdue()
             showUndo(item, "Snoozed for ${if (hours == 24) "1 day" else "$hours hours"}")
         }
@@ -170,7 +198,6 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun deleteTask(item: AnchorItem) {
         viewModelScope.launch {
-            AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
             repository.delete(item)
             refreshOverdue()
             showUndo(item, "Item deleted")
@@ -180,11 +207,6 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
     fun updateItem(item: AnchorItem) {
         viewModelScope.launch {
             repository.updateItem(item)
-            if (item.status != AnchorItem.STATUS_DONE && item.dueDate != null) {
-                AnchorAlarmScheduler.scheduleTaskReminder(app, item)
-            } else {
-                AnchorAlarmScheduler.cancelTaskReminder(app, item.id)
-            }
             refreshOverdue()
             _uiState.update { it.copy(editingItem = null) }
         }
@@ -244,6 +266,41 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun dismissClipboard() {
         _uiState.update { it.copy(clipboardCandidate = null) }
+    }
+
+    // Contextual Intelligence / Ask Anchor
+    fun askIntelligence(query: String) {
+        _uiState.update {
+            it.copy(
+                isIntelligenceOpen = true,
+                intelligenceQuery = query,
+                isIntelligenceLoading = true,
+                intelligenceAnswer = null
+            )
+        }
+        viewModelScope.launch {
+            val tasks = repository.getActiveTasksSync()
+            val allItems = repository.getAllActiveItemsSync()
+            val allNotes = allItems.filter { it.type == AnchorItem.TYPE_NOTE }
+            val answer = geminiService.askContextualIntelligence(query, tasks, allNotes)
+            _uiState.update {
+                it.copy(
+                    intelligenceAnswer = answer,
+                    isIntelligenceLoading = false
+                )
+            }
+        }
+    }
+
+    fun dismissIntelligence() {
+        _uiState.update {
+            it.copy(
+                isIntelligenceOpen = false,
+                intelligenceQuery = "",
+                intelligenceAnswer = null,
+                isIntelligenceLoading = false
+            )
+        }
     }
 
     // Morning Brief
@@ -318,16 +375,15 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update { it.copy(isSnoozeCoachOpen = false, snoozeCoachItem = null, snoozeBreakdown = null) }
     }
 
+    /**
+     * Safe task breakdown:
+     * Keeps the original task intact as the parent.
+     * Generates child subtasks linked via parentId.
+     * Prevents duplicate subtasks and preserves context.
+     */
     fun applySnoozeSubtasks(originalItem: AnchorItem, subtasks: List<String>) {
         viewModelScope.launch {
-            // Convert micro-steps into separate actionable subtasks
-            subtasks.forEachIndexed { index, stepTitle ->
-                repository.captureInstant(
-                    rawText = stepTitle
-                )
-            }
-            // Mark original task snoozed with notes or completed
-            repository.delete(originalItem)
+            repository.applyBreakdownSubtasks(originalItem, subtasks)
             dismissSnoozeCoach()
             refreshOverdue()
             showUndo(originalItem, "Broken into ${subtasks.size} friction-free steps!")
@@ -382,7 +438,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
             val now = System.currentTimeMillis()
 
             val sampleItems = listOf(
-                // 1. Overdue task (Rose tint - overdue only)
+                // 1. Overdue task
                 AnchorItem(
                     title = "Renew enterprise security & domain SSL certificates",
                     rawInput = "Renew enterprise security & domain SSL certificates yesterday at 5pm #security #personal",
@@ -396,7 +452,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     aiSorted = true,
                     todayOrder = 99
                 ),
-                // 2. "Do this next" Hero card task with due time (Slate tint)
+                // 2. Hero card task
                 AnchorItem(
                     title = "Quarterly systems architecture review & client sync",
                     rawInput = "Quarterly systems architecture review & client sync today at 2:30pm 45m #meeting #work",
@@ -410,7 +466,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     aiSorted = true,
                     todayOrder = 0
                 ),
-                // 3. Today bento item (Sage tint)
+                // 3. Today bento item
                 AnchorItem(
                     title = "Team wellness sprint retrospective & stretch",
                     rawInput = "Team wellness sprint retrospective & stretch today at 4pm #wellness #health",
@@ -424,7 +480,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     aiSorted = true,
                     todayOrder = 1
                 ),
-                // 4. Today bento item (Apricot tint)
+                // 4. Today bento item
                 AnchorItem(
                     title = "Order studio acoustic baffles & hardware",
                     rawInput = "Order studio acoustic baffles & hardware today at 6pm #order #studio",
@@ -438,7 +494,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     aiSorted = true,
                     todayOrder = 2
                 ),
-                // 5. Today bento item (Orchid tint)
+                // 5. Today bento item
                 AnchorItem(
                     title = "Design team celebration dinner reservations",
                     rawInput = "Design team celebration dinner reservations today at 8pm #celebration #dinner",
@@ -452,7 +508,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     aiSorted = true,
                     todayOrder = 3
                 ),
-                // 6. Inbox task (Sage tint)
+                // 6. Inbox task
                 AnchorItem(
                     title = "Schedule annual preventive ophthalmologist checkup",
                     rawInput = "Schedule annual preventive ophthalmologist checkup #health",
@@ -461,7 +517,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     tags = "health,wellness",
                     aiSorted = true
                 ),
-                // 7. Inbox task (Apricot tint)
+                // 7. Inbox task
                 AnchorItem(
                     title = "Curate references for generative typography lecture",
                     rawInput = "Curate references for generative typography lecture #learn #course",
@@ -470,7 +526,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     tags = "learn,course",
                     aiSorted = true
                 ),
-                // 8. Upcoming task (Slate tint)
+                // 8. Upcoming task
                 AnchorItem(
                     title = "Keynote rehearsal with European engineering leads",
                     rawInput = "Keynote rehearsal with European engineering leads tomorrow at 10am #meeting #doc",
@@ -483,7 +539,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     estimatedMinutes = 60,
                     aiSorted = true
                 ),
-                // 9. Note (Orchid tint)
+                // 9. Note
                 AnchorItem(
                     title = "Design premise: Large rounded forms layered like satin and dark glass. Restraint and pixel precision over decoration.",
                     rawInput = "note: Design premise: Large rounded forms layered like satin and dark glass. Restraint and pixel precision over decoration. #idea #philosophy",
@@ -492,7 +548,7 @@ class AnchorViewModel(application: Application) : AndroidViewModel(application) 
                     tags = "idea,philosophy",
                     aiSorted = true
                 ),
-                // 10. Done item (Rose tint)
+                // 10. Done item
                 AnchorItem(
                     title = "Deploy production v3.2 build release candidate",
                     rawInput = "Deploy production v3.2 build release candidate #release #personal",

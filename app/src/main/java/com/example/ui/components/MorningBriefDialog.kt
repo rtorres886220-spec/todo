@@ -27,15 +27,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ai.MorningBrief
 import com.example.data.AnchorItem
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietBackgroundLift
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.Surface1
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
 import com.example.ui.util.HapticHelper
 
 @Composable
@@ -54,10 +53,10 @@ fun MorningBriefDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
                 .drawBehind {
-                    drawRect(color = QuietBackgroundLift)
+                    drawRect(color = Surface1)
                     // 1px top highlight
                     drawLine(
-                        color = QuietHighlight,
+                        color = SurfaceHighlight,
                         start = Offset(0f, 0.5f),
                         end = Offset(size.width, 0.5f),
                         strokeWidth = 1.dp.toPx()
@@ -75,17 +74,17 @@ fun MorningBriefDialog(
                 ) {
                     Text(
                         text = "MORNING BRIEF",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 12.sp,
-                        color = QuietAccent,
+                        color = AccentGold,
                         letterSpacing = 0.14.em
                     )
 
                     Text(
                         text = "CLOSE",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable { onDismiss() }
@@ -104,15 +103,15 @@ fun MorningBriefDialog(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
-                                color = QuietAccent,
+                                color = AccentGold,
                                 strokeWidth = 1.5.dp
                             )
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
                                 text = "Distilling focus anchors...",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 11.sp,
-                                color = QuietTextSecondary,
+                                color = TextSecondary,
                                 letterSpacing = 0.14.em
                             )
                         }
@@ -121,10 +120,10 @@ fun MorningBriefDialog(
                     // Headline and motivation
                     Text(
                         text = brief.focusHeadline,
-                        fontFamily = Manrope,
+                        fontFamily = PlusJakartaSans,
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
-                        color = QuietTextPrimary,
+                        color = TextPrimary,
                         letterSpacing = (-0.01).sp
                     )
 
@@ -132,19 +131,19 @@ fun MorningBriefDialog(
 
                     Text(
                         text = "\"${brief.motivationalQuote}\"",
-                        fontFamily = Manrope,
+                        fontFamily = PlusJakartaSans,
                         fontSize = 15.sp,
                         lineHeight = 21.sp,
-                        color = QuietTextSecondary
+                        color = TextSecondary
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
                         text = "ESTIMATED FOCUS // ${brief.estimatedTotalMinutes}M",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietAccent,
+                        color = AccentGold,
                         letterSpacing = 0.14.em
                     )
 
@@ -154,9 +153,9 @@ fun MorningBriefDialog(
 
                     Text(
                         text = "TOP 3 MUST-DO ANCHORS",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
 
@@ -174,25 +173,25 @@ fun MorningBriefDialog(
                         ) {
                             Text(
                                 text = "0${index + 1}",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 11.sp,
-                                color = QuietAccent,
+                                color = AccentGold,
                                 letterSpacing = 0.14.em
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = task.title,
-                                fontFamily = Manrope,
+                                fontFamily = PlusJakartaSans,
                                 fontSize = 15.sp,
-                                color = QuietTextPrimary,
+                                color = TextPrimary,
                                 modifier = Modifier.weight(1f)
                             )
                             if (task.estimatedMinutes != null) {
                                 Text(
                                     text = "${task.estimatedMinutes}M",
-                                    fontFamily = JetBrainsMono,
+                                    fontFamily = GeistMono,
                                     fontSize = 11.sp,
-                                    color = QuietTextTertiary,
+                                    color = TextTertiary,
                                     letterSpacing = 0.14.em
                                 )
                             }
@@ -214,9 +213,9 @@ fun MorningBriefDialog(
                     ) {
                         Text(
                             text = "ACCEPT TODAY'S PLAN",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = GeistMono,
                             fontSize = 12.sp,
-                            color = QuietAccent,
+                            color = AccentGold,
                             letterSpacing = 0.14.em
                         )
                     }

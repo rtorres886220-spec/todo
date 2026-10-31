@@ -17,10 +17,21 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
+import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.recaptcha.RecaptchaAppCheckProviderFactory
 import com.example.notification.NotificationHelper
 import com.example.ui.MainScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.AnchorViewModel
+
+private const val TAG_APPCHECK = "AppCheckInit"
+private const val DEBUG_TOKEN_EXTRA = "FIREBASE_APPCHECK_DEBUG_TOKEN"
+private const val DEBUG_STORE_PREFIX = "com.google.firebase.appcheck.debug.store."
+private const val DEBUG_SECRET_KEY = "com.google.firebase.appcheck.debug.DEBUG_SECRET"
+private const val RECAPTCHA_SITE_KEY_RES = "recaptcha_site_key"
 
 class MainActivity : ComponentActivity() {
 
@@ -28,6 +39,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // STEP 1: Configure App Check with launch intent before any UI or Firebase operations
+        configureAppCheck(this, intent)
+
         enableEdgeToEdge()
 
         // Create notification channels
@@ -127,3 +142,55 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+fun configureAppCheck(context: Context, intent: Intent?) {
+    try {
+        val app = if (FirebaseApp.getApps(context).isEmpty()) {
+            FirebaseApp.initializeApp(context)
+        } else {
+            try {
+                FirebaseApp.getInstance()
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        if (app == null) {
+            Log.d(TAG_APPCHECK, "FirebaseApp is not initialized. App Check skipped.")
+            return
+        }
+
+        if (BuildConfig.DEBUG) {
+            val debugToken = intent?.getStringExtra(DEBUG_TOKEN_EXTRA)
+            if (!debugToken.isNullOrEmpty()) {
+                val persistenceKey = app.persistenceKey
+                val prefs = context.getSharedPreferences(
+                    "$DEBUG_STORE_PREFIX$persistenceKey",
+                    Context.MODE_PRIVATE
+                )
+                // Use commit() synchronously so the secret is persisted before provider reads it
+                prefs.edit().putString(DEBUG_SECRET_KEY, debugToken).commit()
+                Log.d(TAG_APPCHECK, "App Check debug secret configured successfully.")
+            }
+
+            FirebaseAppCheck.getInstance(app).installAppCheckProviderFactory(
+                DebugAppCheckProviderFactory.getInstance()
+            )
+            Log.d(TAG_APPCHECK, "DebugAppCheckProviderFactory installed.")
+        } else {
+            val resId = context.resources.getIdentifier(RECAPTCHA_SITE_KEY_RES, "string", context.packageName)
+            if (resId != 0) {
+                val siteKey = context.getString(resId)
+                if (siteKey.isNotBlank()) {
+                    FirebaseAppCheck.getInstance(app).installAppCheckProviderFactory(
+                        RecaptchaAppCheckProviderFactory.getInstance(siteKey)
+                    )
+                    Log.d(TAG_APPCHECK, "RecaptchaAppCheckProviderFactory installed.")
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Log.e(TAG_APPCHECK, "App Check initialization bypassed or failed", e)
+    }
+}
+

@@ -22,11 +22,7 @@ val GeistMono = FontFamily(
     Font(R.font.geist_mono, FontWeight.Normal)
 )
 
-// Backward compatibility mappings
-val Manrope = PlusJakartaSans
-val JetBrainsMono = GeistMono
 
-// Display numerals/dates: weight 300 at 44-64px, tracking -0.02em
 val DisplayNumeralLarge = TextStyle(
     fontFamily = PlusJakartaSans,
     fontWeight = FontWeight.Light,
@@ -111,12 +107,7 @@ val MetadataMonoMedium = TextStyle(
     letterSpacing = 0.14.em
 )
 
-// Legacy aliases
-val QuietDisplay = ScreenTitleLarge
-val QuietBody = BodyLarge
-val QuietBodySmall = BodyRegular
-val QuietMono = MetadataMono
-val QuietMonoMedium = MetadataMonoMedium
+
 
 val Typography = Typography(
     displayLarge = DisplayNumeralLarge,

@@ -45,15 +45,15 @@ fun UpcomingView(
     cal.add(Calendar.DAY_OF_YEAR, 1)
     val tomorrowStr = dateFormat.format(cal.time)
 
-    val tomorrowTasks = upcomingTasks.filter { it.dueDate == tomorrowStr }
-    val laterTasks = upcomingTasks.filter { it.dueDate != null && it.dueDate > tomorrowStr }
-    val otherTasks = upcomingTasks.filter { it.dueDate == null || it.dueDate <= todayStr }
+    val strictlyUpcoming = upcomingTasks.filter { it.dueDate != null && it.dueDate > todayStr }
+    val tomorrowTasks = strictlyUpcoming.filter { it.dueDate == tomorrowStr }
+    val laterTasks = strictlyUpcoming.filter { it.dueDate != null && it.dueDate > tomorrowStr }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        if (upcomingTasks.isEmpty()) {
+        if (strictlyUpcoming.isEmpty()) {
             item {
                 QuietEmptyState(message = "Nothing upcoming")
             }
@@ -126,46 +126,6 @@ fun UpcomingView(
                     QuietHairline(modifier = Modifier.padding(horizontal = 24.dp))
                 }
                 items(laterTasks, key = { "later_${it.id}" }) { item ->
-                    AnchorCard(
-                        item = item,
-                        onMoveToToday = { onMoveToToday(item) },
-                        onSnooze = { onSnooze(item) },
-                        onComplete = { onComplete(item) },
-                        onDelete = { onDelete(item) },
-                        onEdit = { onEdit(item) },
-                        onSnoozeCoach = { onSnoozeCoach(item) }
-                    )
-                }
-            }
-
-            // Other Scheduled
-            if (otherTasks.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "OTHER SCHEDULED",
-                            fontFamily = GeistMono,
-                            fontSize = 11.sp,
-                            color = TextSecondary,
-                            letterSpacing = 0.14.em
-                        )
-                        Text(
-                            text = "${otherTasks.size}",
-                            fontFamily = GeistMono,
-                            fontSize = 11.sp,
-                            color = TextTertiary,
-                            letterSpacing = 0.14.em
-                        )
-                    }
-                    QuietHairline(modifier = Modifier.padding(horizontal = 24.dp))
-                }
-                items(otherTasks, key = { "other_${it.id}" }) { item ->
                     AnchorCard(
                         item = item,
                         onMoveToToday = { onMoveToToday(item) },

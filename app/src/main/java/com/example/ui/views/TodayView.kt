@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,11 +49,11 @@ import androidx.compose.ui.unit.sp
 import com.example.data.AnchorItem
 import com.example.ui.components.AnchorCard
 import com.example.ui.components.BentoGridCard
+import com.example.ui.components.Kinetic3DAnchorSculpture
 import com.example.ui.components.NotchedTabMergeShape
 import com.example.ui.components.QuietEmptyState
-import com.example.ui.components.QuietHairline
 import com.example.ui.components.getCategoryTint
-import com.example.ui.components.softDimensionalDepth
+import com.example.ui.components.sculpted3DSunkenWell
 import com.example.ui.theme.AccentGold
 import com.example.ui.theme.AccentGoldGlow
 import com.example.ui.theme.GeistMono
@@ -262,8 +261,6 @@ fun TodayView(
                     .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 // Circular day chips row to the right of the Today tab
-                val calendar = remember { Calendar.getInstance() }
-                // Circular day chips row to the right of the Today tab
                 val dayChips = remember {
                     val cal = Calendar.getInstance()
                     val list = mutableListOf<Pair<Int, String>>()
@@ -290,8 +287,34 @@ fun TodayView(
                                 modifier = Modifier
                                     .padding(horizontal = 5.dp)
                                     .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isChipSelected) Surface2 else Surface2.copy(alpha = 0.6f))
+                                    .then(
+                                        if (isChipSelected) {
+                                            Modifier.sculpted3DSunkenWell(
+                                                cornerRadius = 19.dp,
+                                                backgroundColor = Surface2
+                                            )
+                                        } else {
+                                            Modifier
+                                                .drawBehind {
+                                                    // 3D convex tactile button shadow
+                                                    drawCircle(
+                                                        color = Color(0x160E182A),
+                                                        radius = size.minDimension / 2f + 1.dp.toPx(),
+                                                        center = Offset(size.width / 2f, size.height / 2f + 2.5.dp.toPx())
+                                                    )
+                                                }
+                                                .clip(CircleShape)
+                                                .background(Surface1)
+                                                .drawBehind {
+                                                    drawLine(
+                                                        color = Color.White,
+                                                        start = Offset(0f, 1.dp.toPx()),
+                                                        end = Offset(size.width, 1.dp.toPx()),
+                                                        strokeWidth = 1.5.dp.toPx()
+                                                    )
+                                                }
+                                        }
+                                    )
                                     .clickable {
                                         HapticHelper.vibrate8ms(context)
                                         selectedFilter = "Day"
@@ -301,15 +324,8 @@ fun TodayView(
                                         if (isChipSelected) {
                                             drawCircle(
                                                 color = AccentGold,
-                                                radius = size.minDimension / 2f - 0.75.dp.toPx(),
+                                                radius = size.minDimension / 2f - 1.dp.toPx(),
                                                 style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-                                            )
-                                        } else {
-                                            drawLine(
-                                                color = SurfaceHighlight,
-                                                start = Offset(0f, 0.5f),
-                                                end = Offset(size.width, 0.5f),
-                                                strokeWidth = 1.dp.toPx()
                                             )
                                         }
                                     },
@@ -318,9 +334,9 @@ fun TodayView(
                                 Text(
                                     text = dayNum,
                                     fontFamily = PlusJakartaSans,
-                                    fontWeight = if (isChipSelected) FontWeight.Normal else FontWeight.Light,
+                                    fontWeight = if (isChipSelected) FontWeight.SemiBold else FontWeight.Normal,
                                     fontSize = 14.sp,
-                                    color = if (isChipSelected) AccentGold else TextSecondary
+                                    color = if (isChipSelected) AccentGold else TextPrimary
                                 )
                             }
                         }
@@ -363,8 +379,20 @@ fun TodayView(
                                     }
                                 )
                             }
-                            // Faint gold glow bleeds from behind the hero card
+                            // 3D Ambient drop shadow for the notched hero card
                             .drawBehind {
+                                drawRoundRect(
+                                    color = Color(0x140E182A),
+                                    topLeft = Offset(0f, 8.dp.toPx()),
+                                    size = size,
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx(), 28.dp.toPx())
+                                )
+                                drawRoundRect(
+                                    color = Color(0x18070E1A),
+                                    topLeft = Offset(0f, 2.dp.toPx()),
+                                    size = size,
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(28.dp.toPx(), 28.dp.toPx())
+                                )
                                 drawCircle(
                                     brush = Brush.radialGradient(
                                         colors = listOf(
@@ -379,18 +407,18 @@ fun TodayView(
                             .clip(NotchedTabMergeShape(tabWidth = 100.dp, tabHeight = 44.dp, cardRadius = 28.dp, tabRadius = 22.dp, inverseRadius = 20.dp))
                             .background(Surface1)
                             .drawBehind {
-                                // 1px inset top highlight (rgba(255,255,255,0.07))
+                                // 1.5px crisp specular top bevel
                                 drawLine(
-                                    color = SurfaceHighlight,
-                                    start = Offset(22.dp.toPx(), 0.5f),
-                                    end = Offset(100.dp.toPx() - 22.dp.toPx(), 0.5f),
-                                    strokeWidth = 1.dp.toPx()
+                                    color = Color.White,
+                                    start = Offset(22.dp.toPx(), 1.dp.toPx()),
+                                    end = Offset(100.dp.toPx() - 22.dp.toPx(), 1.dp.toPx()),
+                                    strokeWidth = 1.5.dp.toPx()
                                 )
                                 drawLine(
-                                    color = SurfaceHighlight,
-                                    start = Offset(120.dp.toPx(), 44.dp.toPx() + 0.5f),
-                                    end = Offset(size.width - 28.dp.toPx(), 44.dp.toPx() + 0.5f),
-                                    strokeWidth = 1.dp.toPx()
+                                    color = Color.White,
+                                    start = Offset(120.dp.toPx(), 44.dp.toPx() + 1.dp.toPx()),
+                                    end = Offset(size.width - 28.dp.toPx(), 44.dp.toPx() + 1.dp.toPx()),
+                                    strokeWidth = 1.5.dp.toPx()
                                 )
                             }
                             .clickable {
@@ -430,54 +458,64 @@ fun TodayView(
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Hero Content: Left weekday & date | hairline divider | Right due time
+                            // Hero Content: Left weekday & date | Abnormal 3D Chrono-Anchor Sculpture | Right due time
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Left: Month & Date
-                                Column(modifier = Modifier.weight(1.1f)) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = activeMonthName,
                                         fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 24.sp,
-                                        lineHeight = 28.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 22.sp,
+                                        lineHeight = 26.sp,
                                         color = TextPrimary
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     Text(
                                         text = activeDayNumberStr,
                                         fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.Light,
-                                        fontSize = 18.sp,
+                                        fontSize = 16.sp,
                                         color = TextSecondary
                                     )
                                 }
 
+                                // Centerpiece: Abnormal Interactive 3D Astrolabe Chrono-Anchor Sculpture
+                                Box(
+                                    modifier = Modifier.padding(horizontal = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Kinetic3DAnchorSculpture(
+                                        sizeDp = 86.dp,
+                                        autoRotate = true
+                                    )
+                                }
 
                                 // Thin vertical hairline divider
                                 Box(
                                     modifier = Modifier
-                                        .height(56.dp)
+                                        .height(52.dp)
                                         .width(1.dp)
                                         .background(HairlineColor)
                                 )
 
-                                // Right: next task's due time in 56px light numerals with small mono AM/PM
+                                // Right: next task's due time in light numerals with small mono AM/PM
                                 Row(
                                     modifier = Modifier
-                                        .weight(1.3f)
-                                        .padding(start = 16.dp),
+                                        .weight(1.1f)
+                                        .padding(start = 12.dp),
                                     verticalAlignment = Alignment.Bottom
                                 ) {
                                     Text(
                                         text = dueTimeNumeral,
                                         fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.Light,
-                                        fontSize = 54.sp,
-                                        lineHeight = 56.sp,
+                                        fontSize = 46.sp,
+                                        lineHeight = 48.sp,
                                         color = TextPrimary,
                                         letterSpacing = (-0.02).em
                                     )
@@ -486,10 +524,10 @@ fun TodayView(
                                             text = " $amPm",
                                             fontFamily = GeistMono,
                                             fontWeight = FontWeight.Light,
-                                            fontSize = 12.sp,
+                                            fontSize = 11.sp,
                                             color = TextSecondary,
                                             letterSpacing = 0.14.em,
-                                            modifier = Modifier.padding(bottom = 8.dp)
+                                            modifier = Modifier.padding(bottom = 6.dp)
                                         )
                                     }
                                 }

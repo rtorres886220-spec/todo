@@ -1,13 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -218,6 +210,16 @@ fun TaskDetailSheet(
                         .navigationBarsPadding()
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
+                        if (item.parentId != null) {
+                            Text(
+                                text = "SUBTASK // LINKED TO PARENT ANCHOR",
+                                fontFamily = GeistMono,
+                                fontSize = 11.sp,
+                                color = AccentGold,
+                                letterSpacing = 0.14.em
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
                         // Title
                         Text(
                             text = item.title,

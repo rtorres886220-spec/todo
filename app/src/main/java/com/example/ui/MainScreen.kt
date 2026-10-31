@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,8 +24,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
+import com.example.ui.theme.Surface1
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -58,6 +62,7 @@ import com.example.data.AnchorItem
 import com.example.ui.components.CaptureBar
 import com.example.ui.components.EditItemSheet
 import com.example.ui.components.EveningReviewDialog
+import com.example.ui.components.IntelligenceDialog
 import com.example.ui.components.MorningBriefDialog
 import com.example.ui.components.NoteDetailSheet
 import com.example.ui.components.QuietNavigationBar
@@ -125,6 +130,7 @@ fun MainScreen(viewModel: AnchorViewModel) {
         uiState.isMorningBriefOpen ||
         uiState.isEveningReviewOpen ||
         uiState.isSnoozeCoachOpen ||
+        uiState.isIntelligenceOpen ||
         uiState.activeTab != AnchorTab.TODAY
 
     BackHandler(enabled = hasOpenOverlay) {
@@ -136,6 +142,7 @@ fun MainScreen(viewModel: AnchorViewModel) {
             uiState.isMorningBriefOpen -> viewModel.dismissMorningBrief()
             uiState.isEveningReviewOpen -> viewModel.dismissEveningReview()
             uiState.isSnoozeCoachOpen -> viewModel.dismissSnoozeCoach()
+            uiState.isIntelligenceOpen -> viewModel.dismissIntelligence()
             uiState.activeTab != AnchorTab.TODAY -> viewModel.setTab(AnchorTab.TODAY)
         }
     }
@@ -300,37 +307,89 @@ fun MainScreen(viewModel: AnchorViewModel) {
                     )
             )
 
-            // Header: Display numeral/date weight 300, tracking -0.02em, metadata in Geist Mono
-            Column(
+            // Header: Display numeral/date with 3D tactile telemetry badge
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopStart)
                     .statusBarsPadding()
-                    .clickable {
-                        HapticHelper.vibrate8ms(context)
-                        viewModel.openSettings()
-                    }
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-                    .testTag("settings_button")
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = headerTitle,
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Light,
-                    fontSize = 42.sp,
-                    lineHeight = 46.sp,
-                    color = TextPrimary,
-                    letterSpacing = (-0.02).em
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = dateMonoStr,
-                    fontFamily = GeistMono,
-                    fontWeight = FontWeight.Light,
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    letterSpacing = 0.14.em
-                )
+                Column(
+                    modifier = Modifier
+                        .clickable {
+                            HapticHelper.vibrate8ms(context)
+                            viewModel.openSettings()
+                        }
+                        .testTag("settings_button")
+                ) {
+                    Text(
+                        text = headerTitle,
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Light,
+                        fontSize = 40.sp,
+                        lineHeight = 44.sp,
+                        color = TextPrimary,
+                        letterSpacing = (-0.02).em
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = dateMonoStr,
+                        fontFamily = GeistMono,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        letterSpacing = 0.14.em
+                    )
+                }
+
+                // 3D Tactile Telemetry Capsule (triggers Intelligence dialog)
+                Box(
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .drawBehind {
+                            drawRoundRect(
+                                color = Color(0x120E182A),
+                                topLeft = Offset(0f, 3.dp.toPx()),
+                                size = size,
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx())
+                            )
+                        }
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                        .background(Surface1)
+                        .drawBehind {
+                            drawLine(
+                                color = Color.White,
+                                start = Offset(10.dp.toPx(), 1.dp.toPx()),
+                                end = Offset(size.width - 10.dp.toPx(), 1.dp.toPx()),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+                        .clickable {
+                            HapticHelper.vibrate8ms(context)
+                            viewModel.askIntelligence("What should I focus on next?")
+                        }
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                        .testTag("intelligence_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.Canvas(modifier = Modifier.size(6.dp)) {
+                            drawCircle(color = com.example.ui.theme.AccentGold)
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "3D CHRONO",
+                            fontFamily = GeistMono,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 10.sp,
+                            color = com.example.ui.theme.AccentGold,
+                            letterSpacing = 0.12.em
+                        )
+                    }
+                }
             }
 
             // Bottom progressive gradient fade so scrolling content fades smoothly above floating bars
@@ -458,6 +517,22 @@ fun MainScreen(viewModel: AnchorViewModel) {
                 isLoading = uiState.isGeneratingAi,
                 onApplySubtasks = { originalItem, subtasks -> viewModel.applySnoozeSubtasks(originalItem, subtasks) },
                 onDismiss = { viewModel.dismissSnoozeCoach() }
+            )
+        }
+
+        if (uiState.isIntelligenceOpen) {
+            IntelligenceDialog(
+                query = uiState.intelligenceQuery,
+                answer = uiState.intelligenceAnswer,
+                isLoading = uiState.isIntelligenceLoading,
+                onItemClick = { item ->
+                    if (item.type == AnchorItem.TYPE_NOTE) {
+                        selectedNoteItem = item
+                    } else {
+                        selectedDetailItem = item
+                    }
+                },
+                onDismiss = { viewModel.dismissIntelligence() }
             )
         }
 

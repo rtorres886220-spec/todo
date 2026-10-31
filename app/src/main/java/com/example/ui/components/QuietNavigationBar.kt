@@ -78,22 +78,35 @@ fun QuietNavigationBar(
             .padding(horizontal = 24.dp)
             .padding(bottom = 12.dp) // floating 12px above bottom edge
             .drawBehind {
-                // Long soft shadow
+                // Multi-tier 3D Ambient and contact drop shadows
                 drawRoundRect(
-                    color = Color(0x44000000),
-                    topLeft = Offset(0f, 6.dp.toPx()),
+                    color = Color(0x180E182A),
+                    topLeft = Offset(0f, 8.dp.toPx()),
+                    size = size,
+                    cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx())
+                )
+                drawRoundRect(
+                    color = Color(0x14070E1A),
+                    topLeft = Offset(0f, 2.dp.toPx()),
                     size = size,
                     cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx())
                 )
             }
             .clip(RoundedCornerShape(28.dp))
-            .background(Surface2)
+            .background(Color.White)
             .drawBehind {
-                // 1px top highlight (rgba(255,255,255,0.07))
+                // 1.5px specular top highlight
                 drawLine(
-                    color = SurfaceHighlight,
-                    start = Offset(28.dp.toPx() * 0.5f, 0.5f),
-                    end = Offset(size.width - (28.dp.toPx() * 0.5f), 0.5f),
+                    color = Color.White,
+                    start = Offset(28.dp.toPx() * 0.5f, 1.dp.toPx()),
+                    end = Offset(size.width - (28.dp.toPx() * 0.5f), 1.dp.toPx()),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+                // Subtle bottom border
+                drawLine(
+                    color = Color(0x10000000),
+                    start = Offset(28.dp.toPx() * 0.5f, size.height - 0.5f),
+                    end = Offset(size.width - (28.dp.toPx() * 0.5f), size.height - 0.5f),
                     strokeWidth = 1.dp.toPx()
                 )
             }
@@ -127,7 +140,25 @@ fun QuietNavigationBar(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp)
+                        .height(52.dp)
+                        .padding(horizontal = 2.dp)
+                        .then(
+                            if (isActive) {
+                                Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Surface2)
+                                    .drawBehind {
+                                        drawLine(
+                                            color = Color.White,
+                                            start = Offset(10.dp.toPx(), 1.dp.toPx()),
+                                            end = Offset(size.width - 10.dp.toPx(), 1.dp.toPx()),
+                                            strokeWidth = 1.dp.toPx()
+                                        )
+                                    }
+                            } else {
+                                Modifier
+                            }
+                        )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -142,14 +173,14 @@ fun QuietNavigationBar(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // 24px icon: Inactive at 55% opacity, active in AccentGold
+                        // 24px icon: Inactive at 65% opacity, active in AccentGold
                         Box(contentAlignment = Alignment.Center) {
-                            Canvas(modifier = Modifier.size(24.dp)) {
-                                val stroke = 1.25.dp.toPx()
+                            Canvas(modifier = Modifier.size(22.dp)) {
+                                val stroke = 1.35.dp.toPx()
                                 val iconColor = if (isActive) {
                                     AccentGold
                                 } else {
-                                    TextSecondary.copy(alpha = 0.55f)
+                                    TextSecondary.copy(alpha = 0.65f)
                                 }
                                 drawQuietTabIcon(tab, iconColor, stroke)
                             }
@@ -158,7 +189,7 @@ fun QuietNavigationBar(
                             if (tab == AnchorTab.INBOX && inboxCount > 0 && !isActive) {
                                 Canvas(
                                     modifier = Modifier
-                                        .size(4.dp)
+                                        .size(5.dp)
                                         .align(Alignment.TopEnd)
                                 ) {
                                     drawCircle(color = AccentGold)
@@ -166,7 +197,7 @@ fun QuietNavigationBar(
                             } else if (tab == AnchorTab.TODAY && hasOverdue && !isActive) {
                                 Canvas(
                                     modifier = Modifier
-                                        .size(4.dp)
+                                        .size(5.dp)
                                         .align(Alignment.TopEnd)
                                 ) {
                                     drawCircle(color = UrgencyCoral)
@@ -185,10 +216,10 @@ fun QuietNavigationBar(
                                 Text(
                                     text = label,
                                     fontFamily = GeistMono,
-                                    fontWeight = FontWeight.Light,
-                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 10.sp,
                                     color = AccentGold,
-                                    letterSpacing = 0.14.em
+                                    letterSpacing = 0.12.em
                                 )
                             }
                         }

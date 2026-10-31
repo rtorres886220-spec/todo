@@ -25,16 +25,15 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ai.EveningReview
-import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.Manrope
-import com.example.ui.theme.QuietAccent
-import com.example.ui.theme.QuietBackgroundLift
-import com.example.ui.theme.QuietHairline
-import com.example.ui.theme.QuietHighlight
-import com.example.ui.theme.QuietTextPrimary
-import com.example.ui.theme.QuietTextSecondary
-import com.example.ui.theme.QuietTextTertiary
-import com.example.ui.theme.QuietUrgency
+import com.example.ui.theme.AccentGold
+import com.example.ui.theme.GeistMono
+import com.example.ui.theme.PlusJakartaSans
+import com.example.ui.theme.Surface1
+import com.example.ui.theme.SurfaceHighlight
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.TextTertiary
+import com.example.ui.theme.UrgencyCoral
 import com.example.ui.util.HapticHelper
 
 @Composable
@@ -52,10 +51,10 @@ fun EveningReviewDialog(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
                 .drawBehind {
-                    drawRect(color = QuietBackgroundLift)
+                    drawRect(color = Surface1)
                     // 1px top highlight
                     drawLine(
-                        color = QuietHighlight,
+                        color = SurfaceHighlight,
                         start = Offset(0f, 0.5f),
                         end = Offset(size.width, 0.5f),
                         strokeWidth = 1.dp.toPx()
@@ -73,17 +72,17 @@ fun EveningReviewDialog(
                 ) {
                     Text(
                         text = "EVENING REVIEW",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 12.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em
                     )
 
                     Text(
                         text = "CLOSE",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 11.sp,
-                        color = QuietTextSecondary,
+                        color = TextSecondary,
                         letterSpacing = 0.14.em,
                         modifier = Modifier
                             .clickable { onDismiss() }
@@ -102,15 +101,15 @@ fun EveningReviewDialog(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
-                                color = QuietTextSecondary,
+                                color = TextSecondary,
                                 strokeWidth = 1.5.dp
                             )
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
                                 text = "Summarizing today's achievements...",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 11.sp,
-                                color = QuietTextSecondary,
+                                color = TextSecondary,
                                 letterSpacing = 0.14.em
                             )
                         }
@@ -118,9 +117,9 @@ fun EveningReviewDialog(
                 } else {
                     Text(
                         text = "${review.completedCount} ANCHORS COMPLETED",
-                        fontFamily = JetBrainsMono,
+                        fontFamily = GeistMono,
                         fontSize = 13.sp,
-                        color = QuietTextPrimary,
+                        color = TextPrimary,
                         letterSpacing = 0.14.em
                     )
 
@@ -128,20 +127,20 @@ fun EveningReviewDialog(
 
                     Text(
                         text = review.summary,
-                        fontFamily = Manrope,
+                        fontFamily = PlusJakartaSans,
                         fontSize = 15.sp,
                         lineHeight = 22.sp,
-                        color = QuietTextSecondary
+                        color = TextSecondary
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
                         text = "\"${review.reflection}\"",
-                        fontFamily = Manrope,
+                        fontFamily = PlusJakartaSans,
                         fontSize = 15.sp,
                         lineHeight = 21.sp,
-                        color = QuietTextTertiary
+                        color = TextTertiary
                     )
 
                     Spacer(modifier = Modifier.height(18.dp))
@@ -151,9 +150,9 @@ fun EveningReviewDialog(
                     if (review.slippedTaskIds.isNotEmpty()) {
                         Text(
                             text = "${review.slippedTaskIds.size} ITEMS SLIPPED",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = GeistMono,
                             fontSize = 11.sp,
-                            color = QuietUrgency,
+                            color = UrgencyCoral,
                             letterSpacing = 0.14.em
                         )
 
@@ -161,9 +160,9 @@ fun EveningReviewDialog(
 
                         Text(
                             text = "Momentum continues tomorrow with a single tap.",
-                            fontFamily = Manrope,
+                            fontFamily = PlusJakartaSans,
                             fontSize = 15.sp,
-                            color = QuietTextSecondary
+                            color = TextSecondary
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -181,18 +180,18 @@ fun EveningReviewDialog(
                         ) {
                             Text(
                                 text = "RESCHEDULE ALL TO TOMORROW",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 12.sp,
-                                color = QuietAccent,
+                                color = AccentGold,
                                 letterSpacing = 0.14.em
                             )
                         }
                     } else {
                         Text(
                             text = "Zero slipped tasks. Everything is grounded.",
-                            fontFamily = Manrope,
+                            fontFamily = PlusJakartaSans,
                             fontSize = 15.sp,
-                            color = QuietTextPrimary
+                            color = TextPrimary
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -206,9 +205,9 @@ fun EveningReviewDialog(
                         ) {
                             Text(
                                 text = "CLOSE REVIEW",
-                                fontFamily = JetBrainsMono,
+                                fontFamily = GeistMono,
                                 fontSize = 12.sp,
-                                color = QuietTextSecondary,
+                                color = TextSecondary,
                                 letterSpacing = 0.14.em
                             )
                         }

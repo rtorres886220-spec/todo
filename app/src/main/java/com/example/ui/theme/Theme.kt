@@ -1,22 +1,22 @@
 package com.example.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val SoftDimensionalDarkColorScheme = darkColorScheme(
+private val Sculpted3DLightColorScheme = lightColorScheme(
     primary = AccentGold,
     onPrimary = GoldOnDarkText,
     primaryContainer = Surface2,
     onPrimaryContainer = AccentGold,
     secondary = TextSecondary,
-    onSecondary = SoftDarkBackground,
+    onSecondary = SoftLightBackground,
     secondaryContainer = Surface1,
     onSecondaryContainer = TextPrimary,
     tertiary = TextTertiary,
     onTertiary = TextPrimary,
-    background = SoftDarkBackground,
+    background = SoftLightBackground,
     onBackground = TextPrimary,
     surface = Surface1,
     onSurface = TextPrimary,
@@ -25,17 +25,17 @@ private val SoftDimensionalDarkColorScheme = darkColorScheme(
     outline = HairlineColor,
     outlineVariant = SurfaceHighlight,
     error = UrgencyCoral,
-    onError = Color(0xFF280B04)
+    onError = Color.White
 )
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = false,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = SoftDimensionalDarkColorScheme,
+        colorScheme = Sculpted3DLightColorScheme,
         typography = Typography,
         content = content
     )

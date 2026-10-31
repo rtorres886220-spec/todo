@@ -116,12 +116,12 @@ fun BentoGridCard(
                 // Gentle top-left to bottom-right gradient (about 8% lightness change)
                 drawRect(brush = tint.gradientBrush)
 
-                // 1px inset top highlight (rgba(255,255,255,0.07))
+                // 1.5px specular top bevel
                 drawLine(
-                    color = SurfaceHighlight,
-                    start = Offset(28.dp.toPx() * 0.5f, 0.5f),
-                    end = Offset(size.width - (28.dp.toPx() * 0.5f), 0.5f),
-                    strokeWidth = 1.dp.toPx()
+                    color = Color.White.copy(alpha = 0.9f),
+                    start = Offset(28.dp.toPx() * 0.4f, 1.dp.toPx()),
+                    end = Offset(size.width - (28.dp.toPx() * 0.4f), 1.dp.toPx()),
+                    strokeWidth = 1.5.dp.toPx()
                 )
             }
             .clickable {

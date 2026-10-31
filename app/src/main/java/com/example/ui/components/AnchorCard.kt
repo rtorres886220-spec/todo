@@ -205,21 +205,43 @@ fun AnchorCard(
             modifier = Modifier.fillMaxWidth()
         ) {
 
-            // Surface 1 row with 20px radius and top highlight
+            // 3D Sculpted Ceramic Row with 20px radius, multi-tier shadows, and specular highlight
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
                         if (isDone) alpha = 0.65f // Dimmed 65% opacity for Done, strikethrough-free
                     }
+                    .drawBehind {
+                        // 3D Ambient & contact drop shadows
+                        drawRoundRect(
+                            color = Color(0x100E182A),
+                            topLeft = Offset(0f, 6.dp.toPx()),
+                            size = size,
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx(), 20.dp.toPx())
+                        )
+                        drawRoundRect(
+                            color = Color(0x12070E1A),
+                            topLeft = Offset(0f, 1.5.dp.toPx()),
+                            size = size,
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx(), 20.dp.toPx())
+                        )
+                    }
                     .clip(RoundedCornerShape(20.dp))
                     .background(Surface1)
                     .drawBehind {
-                        // 1px top highlight
+                        // 1.5px specular top highlight
                         drawLine(
-                            color = SurfaceHighlight,
-                            start = Offset(20.dp.toPx() * 0.5f, 0.5f),
-                            end = Offset(size.width - 20.dp.toPx() * 0.5f, 0.5f),
+                            color = Color.White,
+                            start = Offset(10.dp.toPx(), 1.dp.toPx()),
+                            end = Offset(size.width - 10.dp.toPx(), 1.dp.toPx()),
+                            strokeWidth = 1.5.dp.toPx()
+                        )
+                        // Subtle bottom occlusion boundary
+                        drawLine(
+                            color = Color(0x0E000000),
+                            start = Offset(10.dp.toPx(), size.height - 0.5f),
+                            end = Offset(size.width - 10.dp.toPx(), size.height - 0.5f),
                             strokeWidth = 1.dp.toPx()
                         )
                         // Overdue left ember hairline

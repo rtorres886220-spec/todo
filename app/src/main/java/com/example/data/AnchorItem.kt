@@ -1,12 +1,21 @@
 package com.example.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "anchor_items")
+@Entity(
+    tableName = "anchor_items",
+    indices = [
+        Index(value = ["parentId"]),
+        Index(value = ["status"]),
+        Index(value = ["dueDate"])
+    ]
+)
 data class AnchorItem(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val parentId: Long? = null,
     val title: String,
     val rawInput: String = "",
     val type: String = TYPE_TASK, // "task" | "note"
